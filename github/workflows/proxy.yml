@@ -1,0 +1,31 @@
+name: Telegram Bot Proxy
+
+# Chỉ cho phép chạy Action khi có yêu cầu HTTP từ bên ngoài.
+# Đây là cách để biến GitHub Action thành một API endpoint.
+on:
+  repository_dispatch:
+    types: [telegram_request]
+
+jobs:
+  send-message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send to Telegram
+        uses: actions/github-script@v6
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        with:
+          script: |
+            const token = process.env.TELEGRAM_TOKEN;
+            // Dữ liệu sẽ được gửi từ front-end của bạn
+            const { chat_id, text } = JSON.parse(process.env.DISPATCH_PAYLOAD);
+            
+            const telegramApiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
+            const telegramResponse = await fetch(telegramApiUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id, text })
+            });
+            const responseData = await telegramResponse.json();
+            
+            console.log('Sent to Telegram:', responseData);
