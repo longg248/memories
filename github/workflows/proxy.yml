@@ -1,31 +1,25 @@
-name: Telegram Bot Proxy
+name: Deploy to GitHub Pages
 
-# Chỉ cho phép chạy Action khi có yêu cầu HTTP từ bên ngoài.
-# Đây là cách để biến GitHub Action thành một API endpoint.
 on:
-  repository_dispatch:
-    types: [telegram_request]
+  push:
+    branches:
+      - main # Hoặc tên branch chính của bạn
 
 jobs:
-  send-message:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Send to Telegram
-        uses: actions/github-script@v6
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Replace Secrets in HTML
+        run: |
+          # Dùng lệnh sed để tìm placeholder và thay bằng giá trị thật từ Secret
+          sed -i "s/YOUR_BOT_TOKEN_PLACEHOLDER/${{ secrets.TELEGRAM_BOT_TOKEN }}/g" index.html
+          sed -i "s/YOUR_CHAT_ID_PLACEHOLDER/${{ secrets.TELEGRAM_CHAT_ID }}/g" index.html
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          script: |
-            const token = process.env.TELEGRAM_TOKEN;
-            // Dữ liệu sẽ được gửi từ front-end của bạn
-            const { chat_id, text } = JSON.parse(process.env.DISPATCH_PAYLOAD);
-            
-            const telegramApiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
-            const telegramResponse = await fetch(telegramApiUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id, text })
-            });
-            const responseData = await telegramResponse.json();
-            
-            console.log('Sent to Telegram:', responseData);
+          folder: . # Thư mục chứa file index.html
+          branch: gh-pages # GitHub sẽ đẩy bản "đã có token" sang branch này để chạy web
