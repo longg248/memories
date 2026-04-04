@@ -1,0 +1,25 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Hoặc tên branch chính của bạn
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Replace Secrets in HTML
+        run: |
+          # Dùng lệnh sed để tìm placeholder và thay bằng giá trị thật từ Secret
+          sed -i "s/YOUR_BOT_TOKEN_PLACEHOLDER/${{ secrets.TELEGRAM_BOT_TOKEN }}/g" index.html
+          sed -i "s/YOUR_CHAT_ID_PLACEHOLDER/${{ secrets.TELEGRAM_CHAT_ID }}/g" index.html
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: . # Thư mục chứa file index.html
+          branch: gh-pages # GitHub sẽ đẩy bản "đã có token" sang branch này để chạy web
