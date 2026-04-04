@@ -261,6 +261,55 @@
       font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
     }
     .lb-info{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:.8rem;text-align:center;}
+    
+    /* ── LIGHTBOX NAV ── */
+    .lb-arrow{
+      position:absolute;top:50%;transform:translateY(-50%);
+      background:rgba(255,255,255,.18);border:none;color:#fff;
+      width:48px;height:48px;border-radius:50%;font-size:1.8rem;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      transition:background .2s;z-index:10;user-select:none;
+    }
+    .lb-arrow:hover{background:rgba(255,255,255,.38);}
+    #lb-prev{left:.75rem;}
+    #lb-next{right:.75rem;}
+    .lb-del-btn{
+      position:absolute;top:1rem;left:1rem;
+      background:rgba(220,50,50,.75);border:none;color:#fff;
+      width:40px;height:40px;border-radius:50%;font-size:.95rem;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      transition:background .2s;z-index:10;
+    }
+    .lb-del-btn:hover{background:rgba(220,50,50,1);}
+    .lb-count{
+      position:absolute;top:1.05rem;left:50%;transform:translateX(-50%);
+      color:rgba(255,255,255,.8);font-size:.85rem;font-weight:700;
+      background:rgba(0,0,0,.35);padding:.2rem .7rem;border-radius:20px;
+    }
+    
+    /* ── DELETE BUTTONS ON CARDS ── */
+    .mem-del{
+      position:absolute;bottom:.4rem;right:.4rem;
+      background:rgba(220,50,50,.8);border:none;color:#fff;
+      width:28px;height:28px;border-radius:50%;font-size:.7rem;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      opacity:0;transition:opacity .2s;z-index:5;
+    }
+    .mem-card:hover .mem-del{opacity:1;}
+    @media(max-width:600px){.mem-del{opacity:.85;}}
+    .dish-del{
+      background:none;border:none;color:#e57373;font-size:1.05rem;
+      cursor:pointer;padding:.3rem .4rem;flex-shrink:0;transition:var(--tr);
+    }
+    .dish-del:hover{color:#c62828;transform:scale(1.2);}
+    
+    /* ── VIDEO IN RECENT GRID ── */
+    .recent-item{position:relative;}
+    .recent-item video{width:100%;height:100%;object-fit:cover;display:block;}
+    .vid-overlay{
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      font-size:1.75rem;pointer-events:none;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));
+    }
 
     /* ── TOAST ── */
     .toast{
@@ -362,10 +411,14 @@
 </div>
 
 <!-- ── LIGHTBOX ── -->
-<div class="lightbox" id="lightbox" onclick="closeLB()">
-  <button class="lb-close" onclick="closeLB()">✕</button>
-  <img id="lb-img" src="" alt="" style="display:none;">
-  <video id="lb-vid" src="" controls style="display:none;"></video>
+<div class="lightbox" id="lightbox">
+  <button class="lb-close"  id="lb-close"  onclick="closeLB()">✕</button>
+  <button class="lb-del-btn" id="lb-del"   onclick="deleteLBItem()" style="display:none;">🗑</button>
+  <div class="lb-count" id="lb-count"></div>
+  <button class="lb-arrow"  id="lb-prev"   onclick="navLB(-1)" style="display:none;">‹</button>
+  <img id="lb-img" src="" alt="" style="display:none;" onclick="event.stopPropagation()">
+  <video id="lb-vid" src="" controls style="display:none;" onclick="event.stopPropagation()"></video>
+  <button class="lb-arrow"  id="lb-next"   onclick="navLB(1)"  style="display:none;">›</button>
   <div class="lb-info" id="lb-info"></div>
 </div>
 
@@ -386,15 +439,90 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const IS_DEMO = SUPABASE_URL.includes('YOUR_PROJECT');
 
-/*
- * sbClient — khai báo 1 lần, dùng xuyên suốt toàn file.
- * supabase.createClient() được gọi đúng 1 lần từ thư viện
- * UMD đã load ở <head>.  KHÔNG tạo thêm client ở bất kỳ nơi nào.
- */
 const sbClient = IS_DEMO ? null : supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ───────────────────────────────────────────────
-   DEMO DATA (dùng khi chưa kết nối Supabase)
+   📱 TELEGRAM CONFIG
+   TG_TOKEN : BotFather → /token
+   TG_CHAT  : @username channel (public) hoặc -100xxxxxxxxxx (private)
+   ─────────────────────────────────────────────── */
+const TG_TOKEN = '8554290634:AAFzbXC_xgWL5qNOpMcyMmz6fDt8S4P8UQ0';            // ← điền vào
+const TG_CHAT  = '-1003774445273';    // ← điền vào, VD: '@anphotos' hoặc '-1001234567890'
+const TG_API   = `https://api.telegram.org/bot${TG_TOKEN}`;
+const TG_FILE  = `https://api.telegram.org/file/bot${TG_TOKEN}`;
+
+const IS_TG_CONFIGURED = !TG_TOKEN.includes('YOUR_BOT');
+
+/* Upload file lên Telegram channel */
+async function tgUploadFile(file) {
+  const isVideo = file.type.startsWith('video');
+  const method  = isVideo ? 'sendVideo' : 'sendPhoto';
+  const field   = isVideo ? 'video'     : 'photo';
+
+  const form = new FormData();
+  form.append('chat_id', TG_CHAT);
+  form.append(field, file);
+  form.append('caption', file.name);
+
+  const res  = await fetch(`${TG_API}/${method}`, {method:'POST', body:form});
+  const json = await res.json();
+  if (!json.ok) throw new Error(`Telegram: ${json.description}`);
+
+  const msg      = json.result;
+  const msgId    = msg.message_id;
+  const mediaObj = isVideo ? msg.video : (msg.photo ? msg.photo[msg.photo.length-1] : null);
+  if (!mediaObj) throw new Error('Telegram: không tìm thấy media');
+
+  const fileId   = mediaObj.file_id;
+  const filePath = await tgGetFilePath(fileId);
+  const url      = `${TG_FILE}/${filePath}`;
+
+  return { fileId, filePath, url, type: isVideo ? 'video' : 'image', msgId };
+}
+
+/* Lấy URL tạm thời qua file_id */
+async function tgGetFilePath(fileId) {
+  const res  = await fetch(`${TG_API}/getFile?file_id=${fileId}`);
+  const json = await res.json();
+  if (!json.ok) throw new Error(`getFile thất bại: ${json.description}`);
+  return json.result.file_path;
+}
+
+/* Refresh link ảnh khi hết hạn, update lại pool lightbox nếu cần */
+async function tgRefreshImg(el, fileId) {
+  if (!fileId || !IS_TG_CONFIGURED) return;
+  try {
+    const fp     = await tgGetFilePath(fileId);
+    const newUrl = `${TG_FILE}/${fp}`;
+    el.src       = newUrl;
+
+    S.mems.forEach(m => {
+      if (!m.tg_file_ids) return;
+      const idx = m.tg_file_ids.indexOf(fileId);
+      if (idx !== -1 && m.media_urls) m.media_urls[idx] = newUrl;
+    });
+
+    if (el.id === 'lb-img' && _lb.pool[_lb.idx]) {
+      if (_lb.pool[_lb.idx].fid === fileId) _lb.pool[_lb.idx].url = newUrl;
+    }
+  } catch (e) { console.warn('tgRefreshImg:', e.message); }
+}
+
+/* Thu hồi/Xoá tin nhắn trên Telegram */
+async function tgDeleteMessage(msgId) {
+  if (!IS_TG_CONFIGURED || !msgId) return;
+  try {
+    await fetch(`${TG_API}/deleteMessage`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({chat_id: TG_CHAT, message_id: msgId})
+    });
+  } catch(e) { console.warn('Lỗi xoá Telegram MSG:', e); }
+}
+
+
+/* ───────────────────────────────────────────────
+   DEMO DATA
    ─────────────────────────────────────────────── */
 const DEMO_CATS = [
   {id:'sang',name:'Ăn sáng',emoji:'🌅',order:1},
@@ -406,36 +534,21 @@ const DEMO_DISHES = [
   {id:'d1', category_id:'sang',name:'Bánh mì thịt',     is_eaten:true},
   {id:'d2', category_id:'sang',name:'Phở bò',            is_eaten:true},
   {id:'d3', category_id:'sang',name:'Cháo lòng',         is_eaten:false},
-  {id:'d4', category_id:'sang',name:'Hủ tiếu Nam Vang',  is_eaten:false},
   {id:'d5', category_id:'vat', name:'Trà sữa trân châu', is_eaten:true},
-  {id:'d6', category_id:'vat', name:'Bánh tráng trộn',   is_eaten:true},
-  {id:'d7', category_id:'vat', name:'Chè thập cẩm',      is_eaten:false},
-  {id:'d8', category_id:'vat', name:'Gỏi cuốn',          is_eaten:true},
   {id:'d9', category_id:'trua',name:'Cơm tấm sườn bì',   is_eaten:true},
-  {id:'d10',category_id:'trua',name:'Bún bò Huế',         is_eaten:true},
-  {id:'d11',category_id:'trua',name:'Mì Quảng',           is_eaten:false},
   {id:'d12',category_id:'toi', name:'Lẩu Thái',           is_eaten:true},
-  {id:'d13',category_id:'toi', name:'Nướng BBQ',          is_eaten:true},
-  {id:'d14',category_id:'toi', name:'Hotpot',             is_eaten:false},
 ];
 const DEMO_MEMS = (() => {
   const seeds=[
     ['2024-01-28','d1'],['2024-02-14','d12'],['2024-03-08','d9'],
-    ['2024-04-20','d5'],['2024-05-01','d2'], ['2024-06-15','d13'],
-    ['2024-07-04','d6'],['2024-08-12','d9'],['2024-09-15','d10'],
-    ['2024-10-31','d1'],['2024-11-20','d12'],['2024-12-25','d13'],
-    ['2025-01-01','d5'],['2025-02-14','d2'],['2025-03-08','d6'],
-    ['2025-04-01','d9'],['2025-05-15','d13'],['2025-06-20','d10'],
-    ['2025-07-04','d1'],['2025-08-15','d5'],['2025-09-09','d12'],
-    ['2025-10-10','d6'],['2025-11-11','d2'],['2025-12-31','d13'],
-    ['2026-01-15','d9'],['2026-02-14','d12'],['2026-03-08','d5'],
-    ['2026-04-03','d1'],
+    ['2024-04-20','d5'],['2024-05-01','d2']
   ];
   return seeds.map(([date,dish_id],i)=>({
     id:'mem'+i, dish_id, date,
     media_urls:[`https://picsum.photos/seed/${dish_id+date}/400/400`],
     media_types:['image'],
-    note: i%4===0?'Ngon quá trời! 😍': i%4===1?'Nhớ mãi hôm nay 💕':'',
+    note: i%4===0?'Ngon quá trời! 😍': '',
+    tg_file_ids: [], tg_msg_ids: []
   }));
 })();
 
@@ -448,20 +561,18 @@ const S = {
 };
 
 /* ───────────────────────────────────────────────
-   DATA LAYER  (tất cả đều dùng sbClient)
+   DATA LAYER
    ─────────────────────────────────────────────── */
 async function loadData() {
   if (IS_DEMO) {
     S.cats=[...DEMO_CATS]; S.dishes=[...DEMO_DISHES]; S.mems=[...DEMO_MEMS];
     return;
   }
-
   const [{data:cats},{data:dishes},{data:mems}] = await Promise.all([
     sbClient.from('categories').select('*').order('order'),
     sbClient.from('dishes').select('*'),
     sbClient.from('memories').select('*').order('date',{ascending:false}),
   ]);
-
   S.cats   = (cats   && cats.length)   ? cats   : await seedCategories();
   S.dishes = dishes  || [];
   S.mems   = mems    || [];
@@ -501,34 +612,37 @@ async function doAddMemory(dishId, date, files, note) {
       id:'mx_'+Date.now(), dish_id:dishId, date, note,
       media_urls:files.map((_,i)=>`https://picsum.photos/seed/${Date.now()+i}/400/400`),
       media_types:files.map(f=>f.type.startsWith('video')?'video':'image'),
+      tg_file_ids: [], tg_msg_ids: []
     };
     S.mems.unshift(mem);
     return mem;
   }
 
-  const urls=[], types=[];
+  if (!IS_TG_CONFIGURED) throw new Error('Chưa điền TG_TOKEN / TG_CHAT');
+
+  const urls=[], types=[], fileIds=[], msgIds=[];
+  $('m-prog').style.display = 'block';
 
   for (let i=0; i<files.length; i++) {
-    const f    = files[i];
-    const ext  = f.name.split('.').pop();
-    const path = `memories/${Date.now()}_${i}.${ext}`;
-
-    /* upload vào Supabase Storage bucket "media" */
-    const {error:upErr} = await sbClient.storage.from('media').upload(path, f);
-    if (upErr) throw new Error('Upload thất bại: '+upErr.message);
-
-    /* lấy public URL (bucket phải là public) */
-    const {data:urlData} = sbClient.storage.from('media').getPublicUrl(path);
-    urls.push(urlData.publicUrl);
-    types.push(f.type.startsWith('video')?'video':'image');
-
-    /* cập nhật progress */
     const pct = Math.round(((i+1)/files.length)*100);
     $('prog-bar').style.width = pct+'%';
-    $('prog-txt').textContent = `Đã tải ${i+1}/${files.length} file (${pct}%)`;
+    $('prog-txt').textContent = `Đang tải file ${i+1}/${files.length} lên Telegram...`;
+
+    const result = await tgUploadFile(files[i]);
+    urls.push(result.url);
+    types.push(result.type);
+    fileIds.push(result.fileId);
+    msgIds.push(result.msgId);
   }
 
-  const row = {dish_id:dishId, date, media_urls:urls, media_types:types, note};
+  $('prog-bar').style.width = '100%';
+  $('prog-txt').textContent = 'Đang lưu vào database...';
+
+  const row = {
+    dish_id: dishId, date, note,
+    media_urls: urls, media_types: types,
+    tg_file_ids: fileIds, tg_msg_ids: msgIds
+  };
   const {data,error} = await sbClient.from('memories').insert(row).select().single();
   if (error) throw new Error(error.message);
   S.mems.unshift(data);
@@ -536,11 +650,10 @@ async function doAddMemory(dishId, date, files, note) {
 }
 
 /* ───────────────────────────────────────────────
-   REALTIME  (subscribe 1 lần sau khi data đã load)
+   REALTIME
    ─────────────────────────────────────────────── */
 function startRealtime() {
   if (IS_DEMO) return;
-
   sbClient
     .channel('db-changes')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'memories'}, payload=>{
@@ -571,7 +684,7 @@ function reRender(){
 }
 
 /* ───────────────────────────────────────────────
-   RENDER
+   RENDER VIEWS
    ─────────────────────────────────────────────── */
 function renderHome(){
   const hr     = new Date().getHours();
@@ -603,12 +716,19 @@ function renderHome(){
     ${recent.length?`
     <div class="sec-label" style="margin-top:1.75rem;">📸 Kỷ niệm gần đây</div>
     <div class="recent-grid">
-      ${recent.map((m,i)=>`
-        <div class="recent-item fi" style="animation-delay:${i*.05}s"
-             onclick="openLB('${m.media_urls[0]}','${m.media_types?.[0]||'image'}','')">
-          <img src="${m.media_urls[0]}" loading="lazy" alt=""
-               onerror="this.src='https://picsum.photos/seed/rc${i}/200/200'">
-        </div>`).join('')}
+      ${(()=>{
+        setPool('home',recent.map(m=>({url:m.media_urls[0],type:m.media_types?.[0]||'image',info:'',memId:m.id, fid:m.tg_file_ids?.[0]||''})));
+        return recent.map((m,i)=>{
+          const isV=m.media_types?.[0]==='video';
+          const fid0 = m.tg_file_ids?.[0]||'';
+          return `<div class="recent-item fi" style="animation-delay:${i*.05}s"
+               onclick="openPool('home',${i})">
+            ${isV
+              ? `<video src="${m.media_urls[0]}" muted playsinline preload="metadata" style="pointer-events:none;"></video><div class="vid-overlay">▶</div>`
+              : `<img src="${m.media_urls[0]}" loading="lazy" alt="" onerror="tgRefreshImg(this,'${fid0}')">`}
+          </div>`;
+        }).join('');
+      })()}
     </div>`:''}
   `;
 }
@@ -632,6 +752,7 @@ function renderCat(catId){
             <div class="dish-meta">${mc} kỷ niệm${d.is_eaten?' · ✅ Đã từng ăn':' · ⭕ Chưa ăn'}</div>
           </div>
           <div class="dish-arr" onclick="openDish('${d.id}')">›</div>
+          <button class="dish-del" onclick="event.stopPropagation();doDeleteDish('${d.id}')" title="Xóa món">🗑</button>
         </div>`;}).join('')}</div>`}
   `;
 }
@@ -647,15 +768,21 @@ function renderDish(dishId){
     <button class="add-dish-btn" onclick="openUpload('${dishId}')">📸 Thêm kỷ niệm</button>
     ${!mems.length
       ?`<div class="empty"><p>📷</p><h3>Chưa có kỷ niệm</h3><p style="font-size:.88rem">Upload ảnh đầu tiên ngay!</p></div>`
-      :`<div class="mem-grid">${mems.map((m,i)=>{
-        const isV=m.media_types?.[0]==='video';
-        return`<div class="mem-card fi" style="animation-delay:${i*.05}s"
-                    onclick="openLB('${m.media_urls[0]}','${m.media_types?.[0]||'image'}','${fmtDate(m.date)}')">
-          ${isV?`<video src="${m.media_urls[0]}" muted playsinline></video>`
-               :`<img src="${m.media_urls[0]}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/${m.id}/300/300'">`}
-          <div class="mem-date">${fmtDate(m.date)}</div>
-          ${m.note?`<div class="mem-note-badge">💭</div>`:''}
-        </div>`;}).join('')}</div>`}
+      :`<div class="mem-grid">${(()=>{
+        setPool('dish',mems.map(m=>({url:m.media_urls[0],type:m.media_types?.[0]||'image',info:fmtDate(m.date),memId:m.id, fid:m.tg_file_ids?.[0]||''})));
+        return mems.map((m,i)=>{
+          const isV=m.media_types?.[0]==='video';
+          const fid0 = m.tg_file_ids?.[0]||'';
+          return `<div class="mem-card fi" style="animation-delay:${i*.05}s"
+                      onclick="openPool('dish',${i})">
+            ${isV? `<video src="${m.media_urls[0]}" muted playsinline></video>`
+                 : `<img src="${m.media_urls[0]}" loading="lazy" alt="" onerror="tgRefreshImg(this,'${fid0}')">`}
+            <div class="mem-date">${fmtDate(m.date)}</div>
+            ${m.note? `<div class="mem-note-badge">💭</div>` : ''}
+            <button class="mem-del" onclick="event.stopPropagation();confirmDeleteMem('${m.id}')" title="Xóa kỷ niệm">🗑</button>
+          </div>`;
+        }).join('');
+      })()}</div>`}
   `;
 }
 
@@ -672,10 +799,10 @@ function renderTimeline(){
     if(!grp[y])grp[y]={};
     if(!grp[y][mo])grp[y][mo]={};
     if(!grp[y][mo][d])grp[y][mo][d]=[];
-    m.media_urls.forEach((u,i)=>grp[y][mo][d].push({url:u,type:m.media_types?.[i]||'image',date:m.date}));
+    m.media_urls.forEach((u,i)=>grp[y][mo][d].push({url:u,type:m.media_types?.[i]||'image',date:m.date, fid:m.tg_file_ids?.[i]||'', memId:m.id}));
   });
 
-  const allPh=sorted.flatMap(m=>m.media_urls.map((u,i)=>({url:u,type:m.media_types?.[i]||'image',date:m.date}))).slice(0,24);
+  const allPh=sorted.flatMap(m=>m.media_urls.map((u,i)=>({url:u,type:m.media_types?.[i]||'image',date:m.date, fid:m.tg_file_ids?.[i]||'', memId:m.id}))).slice(0,24);
   const total=sorted.reduce((s,m)=>s+m.media_urls.length,0);
   const MO=['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
 
@@ -683,29 +810,38 @@ function renderTimeline(){
     <h1 class="pg-title">📷 <span>Timeline</span></h1>
     <div class="sec-label">🖼️ Tất cả · ${total} tấm ảnh</div>
     <div class="tl-masonry">
-      ${allPh.map((p,i)=>`
-        <div class="tl-item fi" style="animation-delay:${i*.025}s"
-             onclick="openLB('${p.url}','${p.type}','${fmtDate(p.date)}')">
-          ${p.type==='video'
-            ?`<video src="${p.url}" muted playsinline></video>`
-            :`<img src="${p.url}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/tl${i}/300/350'">`}
-        </div>`).join('')}
+      ${(()=>{
+        setPool('tl',allPh.map(p=>({url:p.url,type:p.type,info:fmtDate(p.date),memId:p.memId, fid:p.fid})));
+        return allPh.map((p,i)=>
+          `<div class="tl-item fi" style="animation-delay:${i*.025}s" onclick="openPool('tl',${i})">
+            ${p.type==='video'
+              ? `<video src="${p.url}" muted playsinline style="pointer-events:none;"></video>`
+              : `<img src="${p.url}" loading="lazy" alt="" onerror="tgRefreshImg(this,'${p.fid}')">`}
+          </div>`
+        ).join('');
+      })()}
     </div>
     <div class="sec-label" style="margin-top:.5rem;">📅 Theo năm</div>`;
 
   Object.keys(grp).sort((a,b)=>b-a).forEach(year=>{
     const yMems=sorted.filter(m=>m.date.startsWith(year));
     const totalY=yMems.reduce((s,m)=>s+m.media_urls.length,0);
-    const prev=yMems.slice(0,4).map(m=>m.media_urls[0]);
+    const prev=yMems.slice(0,4).map(m=>({url:m.media_urls[0], fid:m.tg_file_ids?.[0]||'', memId:m.id}));
+    
     html+=`<div class="yr-card" id="yr-${year}">
       <div class="yr-hd" onclick="toggleYr('${year}')">
         <div><div class="yr-title">${year}</div><div class="yr-count">${totalY} tấm · ${yMems.length} kỷ niệm</div></div>
         <div class="yr-toggle">▼</div>
       </div>
       <div class="yr-body">
-        ${prev.length?`<div class="yr-preview">${prev.map((u,i)=>
-          `<img src="${u}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/yp${i}/100/100'"
-               onclick="event.stopPropagation();openLB('${u}','image','')">`).join('')}</div>`:''}`;
+        ${(()=>{
+          const ypKey='yp_'+year;
+          setPool(ypKey,prev.map(p=>({url:p.url,type:'image',info:year,memId:p.memId, fid:p.fid})));
+          return prev.length?`<div class="yr-preview">${prev.map((p,i)=>
+            `<img src="${p.url}" loading="lazy" alt="" onerror="tgRefreshImg(this,'${p.fid}')"
+                 onclick="event.stopPropagation();openPool('${ypKey}',${i})">`
+          ).join('')}</div>`:'';})()}`;
+          
     Object.keys(grp[year]).sort((a,b)=>b-a).forEach(mo=>{
       const moPics=Object.values(grp[year][mo]).flat();
       html+=`<div class="mo-item" id="mo-${year}-${mo}">
@@ -718,18 +854,21 @@ function renderTimeline(){
         const items=grp[year][mo][day];
         html+=`<div class="day-grp">
           <div class="day-lbl">Ngày ${parseInt(day)} tháng ${parseInt(mo)}</div>
-          <div class="day-grid">${items.map(it=>it.type==='video'
-            ?`<video src="${it.url}" muted playsinline onclick="openLB('${it.url}','video','${fmtDate(it.date)}')"></video>`
-            :`<img src="${it.url}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/dy/150/150'"
-                  onclick="openLB('${it.url}','image','${fmtDate(it.date)}')">`
-          ).join('')}</div>
+          <div class="day-grid">${(()=>{
+            const poolKey=`day_${year}_${mo}_${day}`;
+            setPool(poolKey,items.map(it=>({url:it.url,type:it.type,info:fmtDate(it.date),memId:it.memId, fid:it.fid})));
+            return items.map((it,ji)=>it.type==='video'
+              ?`<video src="${it.url}" muted playsinline onclick="openPool('${poolKey}',${ji})"></video>`
+              :`<img src="${it.url}" loading="lazy" alt="" onerror="tgRefreshImg(this,'${it.fid}')"
+                    onclick="openPool('${poolKey}',${ji})">`
+            ).join('');
+          })()}</div>
         </div>`;
       });
       html+=`</div></div>`;
     });
     html+=`</div></div>`;
   });
-
   $('p-timeline').innerHTML=html;
 }
 
@@ -755,12 +894,11 @@ function openDish(id){
   S.dishId=id;
   goPage('dish');
 }
-
 function toggleYr(y){ const el=$('yr-'+y); if(el) el.classList.toggle('open'); }
 function toggleMo(y,m){ const el=$(`mo-${y}-${m}`); if(el) el.classList.toggle('open'); }
 
 /* ───────────────────────────────────────────────
-   MODALS
+   MODALS / UPLOADS
    ─────────────────────────────────────────────── */
 function openAddDish(catId){
   $('m-dish-cat').innerHTML=S.cats.map(c=>
@@ -823,36 +961,153 @@ function closeM(id){$(id).classList.remove('active');}
 document.querySelectorAll('.modal-ov').forEach(o=>
   o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('active');}));
 
-/* ── TOGGLE EATEN ── */
 async function onToggle(id,el){
   const on=await doToggleEaten(id);
   el.classList.toggle('on',on);
   toast(on?'✅ Đã đánh dấu là đã ăn!':'⭕ Đã bỏ đánh dấu');
 }
 
-/* ── LIGHTBOX ── */
-function openLB(url,type,info){
-  const img=$('lb-img'), vid=$('lb-vid');
-  if(type==='video'){img.style.display='none';vid.src=url;vid.style.display='block';}
-  else{vid.style.display='none';img.src=url;img.style.display='block';}
-  $('lb-info').textContent=info||'';
+/* ───────────────────────────────────────────────
+   LIGHTBOX (pool-based + swipe + nav + delete)
+   ─────────────────────────────────────────────── */
+const _pools = {};
+let   _lb    = { pool:[], idx:0, touchX:0 };
+
+function setPool(key, items) { _pools[key] = items; }
+
+function openPool(key, idx) {
+  _lb.pool = _pools[key] || [];
+  _lb.idx  = Math.max(0, Math.min(idx, _lb.pool.length-1));
+  _renderLB();
   $('lightbox').classList.add('active');
 }
-function closeLB(){
-  $('lightbox').classList.remove('active');
-  try{$('lb-vid').pause();}catch{}
-}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLB();});
 
-/* ── TOAST ── */
+function _renderLB() {
+  const item = _lb.pool[_lb.idx];
+  if (!item) return;
+  const img = $('lb-img'), vid = $('lb-vid');
+  try { vid.pause(); } catch {}
+  if (item.type === 'video') {
+    img.style.display = 'none';
+    vid.src = item.url; vid.style.display = 'block';
+  } else {
+    vid.style.display = 'none';
+    img.src = item.url; 
+    img.setAttribute('onerror', `tgRefreshImg(this, '${item.fid}')`);
+    img.style.display = 'block';
+  }
+  $('lb-info').textContent = item.info || '';
+  const n = _lb.pool.length;
+  $('lb-count').textContent = n > 1 ? `${_lb.idx+1} / ${n}` : '';
+  const show = n > 1 ? 'flex' : 'none';
+  $('lb-prev').style.display = show;
+  $('lb-next').style.display = show;
+  $('lb-del').style.display  = item.memId ? 'flex' : 'none';
+}
+
+function navLB(dir) {
+  const n = _lb.pool.length;
+  if (n <= 1) return;
+  _lb.idx = (_lb.idx + dir + n) % n;
+  _renderLB();
+}
+
+function closeLB() {
+  $('lightbox').classList.remove('active');
+  try { $('lb-vid').pause(); } catch {}
+}
+
+async function deleteLBItem() {
+  const item = _lb.pool[_lb.idx];
+  if (!item?.memId) return;
+  await confirmDeleteMem(item.memId);
+  const stillExists = S.mems.find(m => m.id === item.memId);
+  if (!stillExists) {
+    _lb.pool = _lb.pool.filter(p => p.memId !== item.memId);
+    if (_lb.pool.length === 0) { closeLB(); return; }
+    _lb.idx = Math.min(_lb.idx, _lb.pool.length - 1);
+    _renderLB();
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (!$('lightbox').classList.contains('active')) return;
+  if (e.key === 'Escape')      closeLB();
+  if (e.key === 'ArrowLeft')   navLB(-1);
+  if (e.key === 'ArrowRight')  navLB(1);
+});
+$('lightbox').addEventListener('click', e => {
+  if (e.target === $('lightbox')) closeLB();
+});
+$('lightbox').addEventListener('touchstart', e => { _lb.touchX = e.touches[0].clientX; }, {passive:true});
+$('lightbox').addEventListener('touchend',   e => {
+  const dx = e.changedTouches[0].clientX - _lb.touchX;
+  if (Math.abs(dx) > 50) navLB(dx < 0 ? 1 : -1);
+});
+
+/* ───────────────────────────────────────────────
+   DELETE SYSTEM (Supabase + Telegram)
+   ─────────────────────────────────────────────── */
+async function confirmDeleteMem(memId) {
+  if (!confirm('Xóa kỷ niệm này? Dữ liệu sẽ biến mất vĩnh viễn.')) return;
+  await doDeleteMemory(memId);
+}
+
+async function doDeleteMemory(memId) {
+  const mem = S.mems.find(m => m.id === memId);
+  if (!IS_DEMO && mem) {
+    const {error} = await sbClient.from('memories').delete().eq('id', memId);
+    if (error) { toast('❌ Xóa thất bại: '+error.message); return; }
+    
+    // Thu hồi tin nhắn trên Telegram nếu có msg_id
+    if (mem.tg_msg_ids) {
+      for (const msgId of mem.tg_msg_ids) {
+        await tgDeleteMessage(msgId);
+      }
+    }
+  }
+  S.mems = S.mems.filter(m => m.id !== memId);
+  toast('🗑️ Đã xóa kỷ niệm');
+  reRender();
+}
+
+async function doDeleteDish(dishId) {
+  const dish = S.dishes.find(d => d.id === dishId);
+  const name  = dish?.name || 'món này';
+  const memsToDel = S.mems.filter(m => m.dish_id === dishId);
+  const hasMems = memsToDel.length;
+  const warn = hasMems ? `\n⚠️ ${hasMems} kỷ niệm liên quan cũng sẽ bị xóa vĩnh viễn.` : '';
+  
+  if (!confirm(`Xóa "${name}"?${warn}`)) return;
+  
+  if (!IS_DEMO) {
+    const {error} = await sbClient.from('dishes').delete().eq('id', dishId);
+    if (error) { toast('❌ Xóa thất bại: '+error.message); return; }
+
+    // Xoá luôn các tin nhắn Telegram liên quan đến món ăn này
+    for (const m of memsToDel) {
+      if (m.tg_msg_ids) {
+        for (const msgId of m.tg_msg_ids) {
+          await tgDeleteMessage(msgId);
+        }
+      }
+    }
+  }
+  S.dishes = S.dishes.filter(d => d.id !== dishId);
+  S.mems   = S.mems.filter(m => m.dish_id !== dishId);
+  toast('🗑️ Đã xóa ' + name);
+  renderCat(S.catId);
+}
+
+/* ───────────────────────────────────────────────
+   TOAST & UTILS
+   ─────────────────────────────────────────────── */
 let _tt;
 function toast(msg){
   const el=$('toast');
   el.textContent=msg; el.classList.add('show');
   clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),2600);
 }
-
-/* ── UTILS ── */
 function $(id){return document.getElementById(id);}
 function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
 
