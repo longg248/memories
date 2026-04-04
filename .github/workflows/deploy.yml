@@ -14,9 +14,9 @@ jobs:
 
       - name: Replace Secrets in HTML
         run: |
-          # Dùng lệnh sed để tìm placeholder và thay bằng giá trị thật từ Secret
-          sed -i "s/YOUR_BOT_TOKEN_PLACEHOLDER/${{ secrets.TELEGRAM_BOT_TOKEN }}/g" index.html
-          sed -i "s/YOUR_CHAT_ID_PLACEHOLDER/${{ secrets.TELEGRAM_CHAT_ID }}/g" index.html
+          # Dùng dấu ' để bao bọc token, tránh lỗi ký tự đặc biệt
+          sed -i "s|YOUR_BOT_TOKEN_PLACEHOLDER|${{ secrets.TELEGRAM_BOT_TOKEN }}|g" index.html
+          sed -i "s|YOUR_CHAT_ID_PLACEHOLDER|${{ secrets.TELEGRAM_CHAT_ID }}|g" index.html
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
