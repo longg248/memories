@@ -6,431 +6,315 @@
   <title>🍜 Ăn cùng người mình thương</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Firebase SDK (compat mode) -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  <!-- Supabase JS (UMD build — load 1 lần duy nhất) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
   <style>
     :root {
-      --cream: #FFF8F3;
-      --rose: #FFB5C8;
-      --rose-d: #FF8FAB;
-      --peach: #FFD0B7;
-      --yellow: #FFE8B6;
-      --lavender: #EEE0FF;
-      --text: #4A3728;
-      --text-lt: #9B8B82;
-      --white: #FFFFFF;
-      --sh: 0 4px 24px rgba(255,140,140,0.13);
-      --sh-h: 0 8px 32px rgba(255,140,140,0.24);
-      --r: 20px; --rs: 12px;
-      --fd: 'Playfair Display', serif;
-      --fb: 'Nunito', sans-serif;
-      --tr: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      --cream:#FFF8F3; --rose:#FFB5C8; --rose-d:#FF8FAB;
+      --peach:#FFD0B7; --yellow:#FFE8B6; --text:#4A3728;
+      --text-lt:#9B8B82;
+      --sh:0 4px 24px rgba(255,140,140,.13);
+      --sh-h:0 8px 32px rgba(255,140,140,.24);
+      --r:20px; --rs:12px;
+      --fd:'Playfair Display',serif; --fb:'Nunito',sans-serif;
+      --tr:all .3s cubic-bezier(.4,0,.2,1);
     }
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family: var(--fb); background: var(--cream); color: var(--text);
-      min-height: 100vh;
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{
+      font-family:var(--fb);background:var(--cream);color:var(--text);min-height:100vh;
       background-image:
-        radial-gradient(circle at 15% 15%, rgba(255,181,200,0.28) 0%, transparent 55%),
-        radial-gradient(circle at 85% 85%, rgba(255,208,183,0.28) 0%, transparent 55%);
+        radial-gradient(circle at 15% 15%,rgba(255,181,200,.28) 0%,transparent 55%),
+        radial-gradient(circle at 85% 85%,rgba(255,208,183,.28) 0%,transparent 55%);
     }
 
-    /* ─── SCREENS ─── */
-    .screen { display:none; }
-    .screen.active { display:block; }
+    /* ── HEADER ── */
+    .header{
+      background:#fff;padding:.875rem 1.5rem;
+      display:flex;align-items:center;justify-content:space-between;
+      box-shadow:0 2px 16px rgba(255,140,140,.1);
+      position:sticky;top:0;z-index:100;
+    }
+    .header-logo{font-family:var(--fd);font-size:1.15rem;color:var(--text);}
+    .header-nav{display:flex;gap:.25rem;}
+    .nav-btn{
+      background:none;border:none;padding:.45rem .875rem;border-radius:var(--rs);cursor:pointer;
+      font-family:var(--fb);font-size:.85rem;font-weight:700;color:var(--text-lt);transition:var(--tr);
+    }
+    .nav-btn:hover{background:var(--cream);color:var(--text);}
+    .nav-btn.active{color:var(--rose-d);background:rgba(255,144,171,.1);}
 
-    /* ─── LOGIN ─── */
-    #login-screen { min-height:100vh; display:none; flex-direction:column; align-items:center; justify-content:center; padding:2rem; }
-    #login-screen.active { display:flex; }
-    .login-bg {
-      position: fixed; inset:0; z-index:-1;
-      background: linear-gradient(135deg, #fff5f8 0%, #fff8f0 50%, #fffbf0 100%);
+    /* ── BOTTOM NAV ── */
+    .btm-nav{
+      position:fixed;bottom:0;left:0;right:0;background:#fff;padding:.6rem;
+      display:flex;justify-content:space-around;
+      box-shadow:0 -4px 20px rgba(255,140,140,.1);z-index:100;
     }
-    .login-card {
-      background: white; border-radius: var(--r); padding: 2.5rem 2rem;
-      width:100%; max-width:400px; box-shadow: var(--sh); text-align:center;
+    .btm-btn{
+      display:flex;flex-direction:column;align-items:center;gap:.2rem;
+      background:none;border:none;cursor:pointer;font-family:var(--fb);
+      font-size:.68rem;font-weight:700;color:var(--text-lt);transition:var(--tr);
+      padding:.25rem .875rem;border-radius:var(--rs);
     }
-    .login-emoji { font-size:3.5rem; margin-bottom:.75rem; }
-    .login-title { font-family: var(--fd); font-size:1.75rem; line-height:1.2; color:var(--text); margin-bottom:.4rem; }
-    .login-sub { color:var(--text-lt); font-size:.9rem; margin-bottom:2rem; }
-    .btn-google {
-      display:flex; align-items:center; justify-content:center; gap:.75rem;
-      width:100%; padding:.85rem; background:white;
-      border:2px solid var(--rose); border-radius:var(--rs);
-      cursor:pointer; font-family:var(--fb); font-size:.95rem; font-weight:700;
-      color:var(--text); transition:var(--tr); margin-bottom:1rem;
-    }
-    .btn-google:hover { background:var(--rose); color:white; }
-    .divider { display:flex; align-items:center; gap:.75rem; margin:.75rem 0; color:var(--text-lt); font-size:.85rem; }
-    .divider::before,.divider::after { content:''; flex:1; height:1px; background:#eee; }
-    .input-g { margin-bottom:.875rem; text-align:left; }
-    .input-g label { display:block; font-size:.8rem; font-weight:700; margin-bottom:.35rem; color:var(--text-lt); letter-spacing:.5px; text-transform:uppercase; }
-    .input-g input {
-      width:100%; padding:.7rem 1rem; border:2px solid #eee; border-radius:var(--rs);
-      font-family:var(--fb); font-size:.95rem; outline:none; transition:var(--tr);
-    }
-    .input-g input:focus { border-color:var(--rose); }
-    .btn-prim {
-      width:100%; padding:.85rem;
-      background:linear-gradient(135deg, var(--rose), var(--peach));
-      border:none; border-radius:var(--rs);
-      font-family:var(--fb); font-size:1rem; font-weight:800;
-      color:white; cursor:pointer; transition:var(--tr);
-    }
-    .btn-prim:hover { transform:translateY(-2px); box-shadow:var(--sh-h); }
-    .auth-link { color:var(--rose-d); font-weight:700; cursor:pointer; text-decoration:none; }
-    #auth-err { color:#e74c3c; font-size:.83rem; margin-top:.6rem; display:none; }
-
-    /* ─── APP SHELL ─── */
-    .header {
-      background:white; padding:.875rem 1.5rem;
-      display:flex; align-items:center; justify-content:space-between;
-      box-shadow:0 2px 16px rgba(255,140,140,0.1);
-      position:sticky; top:0; z-index:100;
-    }
-    .header-logo { font-family:var(--fd); font-size:1.15rem; color:var(--text); display:flex; align-items:center; gap:.5rem; }
-    .header-nav { display:flex; gap:.25rem; }
-    .nav-btn {
-      background:none; border:none; padding:.45rem .875rem;
-      border-radius:var(--rs); cursor:pointer;
-      font-family:var(--fb); font-size:.85rem; font-weight:700;
-      color:var(--text-lt); transition:var(--tr);
-    }
-    .nav-btn:hover { background:var(--cream); color:var(--text); }
-    .nav-btn.active { color:var(--rose-d); background:rgba(255,144,171,.1); }
-
-    .btm-nav {
-      position:fixed; bottom:0; left:0; right:0;
-      background:white; padding:.6rem;
-      display:flex; justify-content:space-around;
-      box-shadow:0 -4px 20px rgba(255,140,140,0.1); z-index:100;
-    }
-    .btm-btn {
-      display:flex; flex-direction:column; align-items:center; gap:.2rem;
-      background:none; border:none; cursor:pointer;
-      font-family:var(--fb); font-size:.68rem; font-weight:700;
-      color:var(--text-lt); transition:var(--tr); padding:.25rem .875rem;
-      border-radius:var(--rs);
-    }
-    .btm-btn span:first-child { font-size:1.35rem; }
-    .btm-btn.active { color:var(--rose-d); }
-    .btm-btn.add-center span:first-child {
+    .btm-btn>span:first-child{font-size:1.35rem;}
+    .btm-btn.active{color:var(--rose-d);}
+    .btm-btn.add-btn-c>span:first-child{
       background:linear-gradient(135deg,var(--rose),var(--peach));
-      color:white; border-radius:50%;
-      width:2.5rem; height:2.5rem;
-      display:flex; align-items:center; justify-content:center;
-      font-size:1.4rem; box-shadow:var(--sh);
+      color:#fff;border-radius:50%;width:2.5rem;height:2.5rem;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.4rem;box-shadow:var(--sh);
     }
 
-    .page { display:none; padding:1.5rem 1rem 6rem; max-width:720px; margin:0 auto; }
-    .page.active { display:block; }
+    /* ── PAGES ── */
+    .page{display:none;padding:1.5rem 1rem 6rem;max-width:720px;margin:0 auto;}
+    .page.active{display:block;}
 
-    /* ─── TYPOGRAPHY ─── */
-    .pg-title { font-family:var(--fd); font-size:1.6rem; margin-bottom:1.5rem; line-height:1.2; }
-    .pg-title span { font-style:italic; color:var(--rose-d); }
-    .sec-label { font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-lt); margin-bottom:.875rem; }
+    /* ── TEXT ── */
+    .pg-title{font-family:var(--fd);font-size:1.6rem;margin-bottom:1.5rem;line-height:1.2;}
+    .pg-title span{font-style:italic;color:var(--rose-d);}
+    .sec-label{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-lt);margin-bottom:.875rem;}
+    .info-box{background:var(--yellow);border-radius:var(--rs);padding:.75rem 1rem;margin-bottom:1.25rem;font-size:.83rem;}
+    .info-box strong{display:block;margin-bottom:.2rem;}
 
-    /* ─── HOME ─── */
-    .suggest-box {
-      background:linear-gradient(135deg, white 0%, var(--yellow) 100%);
-      border-radius:var(--r); padding:1.25rem 1.5rem; margin-bottom:2rem;
-      box-shadow:var(--sh); position:relative; overflow:hidden;
+    /* ── HOME ── */
+    .suggest-box{
+      background:linear-gradient(135deg,#fff 0%,var(--yellow) 100%);
+      border-radius:var(--r);padding:1.25rem 1.5rem;margin-bottom:2rem;
+      box-shadow:var(--sh);position:relative;overflow:hidden;
     }
-    .suggest-box::after { content:'✨'; position:absolute; right:1.25rem; top:.875rem; font-size:2.2rem; opacity:.4; }
-    .suggest-lbl { font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:var(--text-lt); margin-bottom:.4rem; }
-    .suggest-ttl { font-family:var(--fd); font-size:1.05rem; color:var(--text); margin-bottom:.875rem; }
-    .chips { display:flex; flex-wrap:wrap; gap:.5rem; }
-    .chip {
-      background:white; border-radius:20px; padding:.35rem .875rem;
-      font-size:.83rem; font-weight:700; color:var(--text);
-      box-shadow:0 2px 8px rgba(0,0,0,.07); cursor:pointer;
-      transition:var(--tr); border:none;
+    .suggest-box::after{content:'✨';position:absolute;right:1.25rem;top:.875rem;font-size:2.2rem;opacity:.4;}
+    .suggest-lbl{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--text-lt);margin-bottom:.4rem;}
+    .suggest-ttl{font-family:var(--fd);font-size:1.05rem;margin-bottom:.875rem;}
+    .chips{display:flex;flex-wrap:wrap;gap:.5rem;}
+    .chip{
+      background:#fff;border-radius:20px;padding:.35rem .875rem;
+      font-size:.83rem;font-weight:700;color:var(--text);
+      box-shadow:0 2px 8px rgba(0,0,0,.07);cursor:pointer;transition:var(--tr);border:none;
     }
-    .chip:hover { background:var(--rose); color:white; }
+    .chip:hover{background:var(--rose);color:#fff;}
 
-    .cat-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:.875rem; }
-    .cat-card {
-      border-radius:var(--r); padding:1.5rem 1rem; box-shadow:var(--sh);
-      cursor:pointer; transition:var(--tr); text-align:center; border:2px solid transparent;
+    .cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.875rem;}
+    .cat-card{
+      border-radius:var(--r);padding:1.5rem 1rem;box-shadow:var(--sh);
+      cursor:pointer;transition:var(--tr);text-align:center;border:2px solid transparent;
     }
-    .cat-card:hover { transform:translateY(-4px); box-shadow:var(--sh-h); border-color:var(--rose); }
-    .cat-emoji { font-size:2.5rem; margin-bottom:.625rem; }
-    .cat-name { font-family:var(--fd); font-size:1.05rem; margin-bottom:.2rem; }
-    .cat-count { font-size:.78rem; color:var(--text-lt); }
-    .recent-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; }
-    .recent-item { aspect-ratio:1; border-radius:10px; overflow:hidden; cursor:pointer; box-shadow:var(--sh); }
-    .recent-item img { width:100%; height:100%; object-fit:cover; transition:var(--tr); }
-    .recent-item:hover img { transform:scale(1.05); }
+    .cat-card:hover{transform:translateY(-4px);box-shadow:var(--sh-h);border-color:var(--rose);}
+    .cat-emoji{font-size:2.5rem;margin-bottom:.625rem;}
+    .cat-name{font-family:var(--fd);font-size:1.05rem;margin-bottom:.2rem;}
+    .cat-count{font-size:.78rem;color:var(--text-lt);}
+    .recent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;}
+    .recent-item{aspect-ratio:1;border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:var(--sh);}
+    .recent-item img{width:100%;height:100%;object-fit:cover;transition:var(--tr);}
+    .recent-item:hover img{transform:scale(1.05);}
 
-    /* ─── CATEGORY ─── */
-    .back-btn {
-      background:none; border:none; cursor:pointer;
-      display:flex; align-items:center; gap:.4rem;
-      color:var(--text-lt); font-family:var(--fb);
-      font-size:.88rem; font-weight:700; margin-bottom:1.25rem; transition:var(--tr);
+    /* ── CATEGORY / DISH ── */
+    .back-btn{
+      background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:.4rem;
+      color:var(--text-lt);font-family:var(--fb);font-size:.88rem;font-weight:700;
+      margin-bottom:1.25rem;transition:var(--tr);
     }
-    .back-btn:hover { color:var(--text); }
-    .add-btn {
-      display:inline-flex; align-items:center; gap:.5rem;
-      background:linear-gradient(135deg,var(--rose),var(--peach));
-      border:none; border-radius:var(--rs); padding:.65rem 1.25rem;
-      cursor:pointer; font-family:var(--fb); font-size:.88rem; font-weight:800;
-      color:white; transition:var(--tr); margin-bottom:1.5rem;
+    .back-btn:hover{color:var(--text);}
+    .add-dish-btn{
+      display:inline-flex;align-items:center;gap:.5rem;
+      background:linear-gradient(135deg,var(--rose),var(--peach));border:none;
+      border-radius:var(--rs);padding:.65rem 1.25rem;cursor:pointer;
+      font-family:var(--fb);font-size:.88rem;font-weight:800;
+      color:#fff;transition:var(--tr);margin-bottom:1.5rem;
     }
-    .add-btn:hover { transform:translateY(-2px); box-shadow:var(--sh-h); }
-    .dishes { display:flex; flex-direction:column; gap:.625rem; }
-    .dish-card {
-      background:white; border-radius:var(--rs); padding:.875rem 1.125rem;
-      box-shadow:var(--sh); transition:var(--tr);
-      display:flex; align-items:center; gap:.875rem;
+    .add-dish-btn:hover{transform:translateY(-2px);box-shadow:var(--sh-h);}
+    .dishes{display:flex;flex-direction:column;gap:.625rem;}
+    .dish-card{
+      background:#fff;border-radius:var(--rs);padding:.875rem 1.125rem;
+      box-shadow:var(--sh);transition:var(--tr);display:flex;align-items:center;gap:.875rem;
     }
-    .dish-card:hover { transform:translateX(4px); box-shadow:var(--sh-h); }
-    .dish-chk {
-      width:24px; height:24px; border-radius:50%;
-      border:2.5px solid var(--rose); background:white;
-      display:flex; align-items:center; justify-content:center;
-      cursor:pointer; flex-shrink:0; transition:var(--tr);
+    .dish-card:hover{transform:translateX(4px);box-shadow:var(--sh-h);}
+    .dish-chk{
+      width:24px;height:24px;border-radius:50%;border:2.5px solid var(--rose);
+      background:#fff;display:flex;align-items:center;justify-content:center;
+      cursor:pointer;flex-shrink:0;transition:var(--tr);
     }
-    .dish-chk.on { background:var(--rose); border-color:var(--rose); }
-    .dish-chk.on::after { content:'✓'; color:white; font-size:12px; font-weight:800; }
-    .dish-info { flex:1; cursor:pointer; }
-    .dish-name { font-weight:800; font-size:.97rem; }
-    .dish-meta { font-size:.77rem; color:var(--text-lt); margin-top:.2rem; }
-    .dish-arr { color:var(--text-lt); font-size:1.2rem; cursor:pointer; padding:.25rem; }
+    .dish-chk.on{background:var(--rose);border-color:var(--rose);}
+    .dish-chk.on::after{content:'✓';color:#fff;font-size:12px;font-weight:800;}
+    .dish-info{flex:1;cursor:pointer;}
+    .dish-name{font-weight:800;font-size:.97rem;}
+    .dish-meta{font-size:.77rem;color:var(--text-lt);margin-top:.2rem;}
+    .dish-arr{color:var(--text-lt);font-size:1.2rem;cursor:pointer;padding:.25rem;}
 
-    /* ─── MEMORIES ─── */
-    .mem-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:.75rem; margin-bottom:1.5rem; }
-    .mem-card {
-      border-radius:var(--rs); overflow:hidden; box-shadow:var(--sh);
-      cursor:pointer; transition:var(--tr); aspect-ratio:1;
-      background:var(--cream); position:relative;
+    /* ── MEMORIES ── */
+    .mem-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin-bottom:1.5rem;}
+    .mem-card{
+      border-radius:var(--rs);overflow:hidden;box-shadow:var(--sh);
+      cursor:pointer;transition:var(--tr);aspect-ratio:1;
+      background:var(--cream);position:relative;
     }
-    .mem-card:hover { transform:scale(1.025); box-shadow:var(--sh-h); }
-    .mem-card img,.mem-card video { width:100%; height:100%; object-fit:cover; }
-    .mem-date {
-      position:absolute; bottom:0; left:0; right:0;
+    .mem-card:hover{transform:scale(1.025);box-shadow:var(--sh-h);}
+    .mem-card img,.mem-card video{width:100%;height:100%;object-fit:cover;}
+    .mem-date{
+      position:absolute;bottom:0;left:0;right:0;
       background:linear-gradient(transparent,rgba(0,0,0,.52));
-      color:white; font-size:.72rem; font-weight:700; padding:1.5rem .625rem .5rem;
+      color:#fff;font-size:.72rem;font-weight:700;padding:1.5rem .625rem .5rem;
     }
-    .mem-note-badge {
-      position:absolute; top:.4rem; right:.4rem;
-      background:rgba(255,255,255,.9); border-radius:50%;
-      width:22px; height:22px; display:flex; align-items:center;
-      justify-content:center; font-size:.68rem;
+    .mem-note-badge{
+      position:absolute;top:.4rem;right:.4rem;background:rgba(255,255,255,.9);
+      border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.68rem;
     }
 
-    /* ─── TIMELINE ─── */
-    .tl-masonry { columns:2; column-gap:.75rem; margin-bottom:2rem; }
-    @media(min-width:500px){ .tl-masonry { columns:3; } }
-    .tl-item {
-      break-inside:avoid; margin-bottom:.75rem;
-      border-radius:var(--rs); overflow:hidden; box-shadow:var(--sh);
-      cursor:pointer; transition:var(--tr);
+    /* ── TIMELINE ── */
+    .tl-masonry{columns:2;column-gap:.75rem;margin-bottom:2rem;}
+    @media(min-width:500px){.tl-masonry{columns:3;}}
+    .tl-item{
+      break-inside:avoid;margin-bottom:.75rem;border-radius:var(--rs);
+      overflow:hidden;box-shadow:var(--sh);cursor:pointer;transition:var(--tr);
     }
-    .tl-item:hover { transform:scale(1.02); box-shadow:var(--sh-h); }
-    .tl-item img,.tl-item video { width:100%; display:block; }
+    .tl-item:hover{transform:scale(1.02);box-shadow:var(--sh-h);}
+    .tl-item img,.tl-item video{width:100%;display:block;}
 
-    .yr-card { background:white; border-radius:var(--r); margin-bottom:1rem; box-shadow:var(--sh); overflow:hidden; }
-    .yr-hd {
-      display:flex; align-items:center; justify-content:space-between;
-      padding:1.125rem 1.375rem; cursor:pointer; transition:var(--tr);
-    }
-    .yr-hd:hover { background:var(--cream); }
-    .yr-title { font-family:var(--fd); font-size:1.35rem; }
-    .yr-count { font-size:.8rem; color:var(--text-lt); margin-top:.1rem; }
-    .yr-toggle { color:var(--text-lt); transition:var(--tr); font-size:1rem; }
-    .yr-card.open .yr-toggle { transform:rotate(180deg); }
-    .yr-body { display:none; padding:0 1.125rem 1.125rem; }
-    .yr-card.open .yr-body { display:block; }
-    .yr-preview { display:grid; grid-template-columns:repeat(4,1fr); gap:.4rem; margin-bottom:.875rem; }
-    .yr-preview img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; cursor:pointer; }
+    .yr-card{background:#fff;border-radius:var(--r);margin-bottom:1rem;box-shadow:var(--sh);overflow:hidden;}
+    .yr-hd{display:flex;align-items:center;justify-content:space-between;padding:1.125rem 1.375rem;cursor:pointer;transition:var(--tr);}
+    .yr-hd:hover{background:var(--cream);}
+    .yr-title{font-family:var(--fd);font-size:1.35rem;}
+    .yr-count{font-size:.8rem;color:var(--text-lt);margin-top:.1rem;}
+    .yr-toggle{color:var(--text-lt);transition:var(--tr);}
+    .yr-card.open .yr-toggle{transform:rotate(180deg);}
+    .yr-body{display:none;padding:0 1.125rem 1.125rem;}
+    .yr-card.open .yr-body{display:block;}
+    .yr-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem;margin-bottom:.875rem;}
+    .yr-preview img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;}
 
-    .mo-item { background:var(--cream); border-radius:var(--rs); margin-bottom:.625rem; overflow:hidden; }
-    .mo-hd { display:flex; align-items:center; justify-content:space-between; padding:.8rem .875rem; cursor:pointer; }
-    .mo-name { font-weight:800; font-size:.92rem; }
-    .mo-count { font-size:.77rem; color:var(--text-lt); }
-    .mo-body { display:none; padding:0 .875rem .875rem; }
-    .mo-item.open .mo-body { display:block; }
-    .day-grp { margin-bottom:.875rem; }
-    .day-lbl { font-size:.73rem; font-weight:800; color:var(--text-lt); margin-bottom:.4rem; text-transform:uppercase; letter-spacing:.5px; }
-    .day-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.35rem; }
-    .day-grid img,.day-grid video {
-      width:100%; aspect-ratio:1; object-fit:cover;
-      border-radius:7px; cursor:pointer; transition:var(--tr);
-    }
-    .day-grid img:hover,.day-grid video:hover { opacity:.82; }
+    .mo-item{background:var(--cream);border-radius:var(--rs);margin-bottom:.625rem;overflow:hidden;}
+    .mo-hd{display:flex;align-items:center;justify-content:space-between;padding:.8rem .875rem;cursor:pointer;}
+    .mo-name{font-weight:800;font-size:.92rem;}
+    .mo-count{font-size:.77rem;color:var(--text-lt);}
+    .mo-body{display:none;padding:0 .875rem .875rem;}
+    .mo-item.open .mo-body{display:block;}
+    .day-grp{margin-bottom:.875rem;}
+    .day-lbl{font-size:.73rem;font-weight:800;color:var(--text-lt);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.5px;}
+    .day-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.35rem;}
+    .day-grid img,.day-grid video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;cursor:pointer;transition:var(--tr);}
+    .day-grid img:hover,.day-grid video:hover{opacity:.82;}
 
-    /* ─── MODALS ─── */
-    .modal-ov {
-      position:fixed; inset:0; background:rgba(0,0,0,.48);
-      display:none; align-items:flex-end; justify-content:center;
-      z-index:1000; backdrop-filter:blur(4px);
+    /* ── MODALS ── */
+    .modal-ov{
+      position:fixed;inset:0;background:rgba(0,0,0,.48);
+      display:none;align-items:flex-end;justify-content:center;
+      z-index:1000;backdrop-filter:blur(4px);
     }
-    .modal-ov.active { display:flex; }
-    .modal {
-      background:white; border-radius:var(--r) var(--r) 0 0;
-      padding:1.375rem 1.25rem; width:100%; max-width:480px;
-      max-height:92vh; overflow-y:auto;
+    .modal-ov.active{display:flex;}
+    .modal{
+      background:#fff;border-radius:var(--r) var(--r) 0 0;
+      padding:1.375rem 1.25rem;width:100%;max-width:480px;
+      max-height:92vh;overflow-y:auto;
       animation:slideUp .32s cubic-bezier(.4,0,.2,1);
     }
-    @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
-    .modal-handle { width:38px; height:4px; background:#eee; border-radius:2px; margin:0 auto 1.25rem; }
-    .modal-title { font-family:var(--fd); font-size:1.25rem; margin-bottom:1.375rem; }
-    .form-g { margin-bottom:1.125rem; }
-    .form-g label { display:block; font-size:.78rem; font-weight:800; margin-bottom:.4rem; color:var(--text-lt); text-transform:uppercase; letter-spacing:.5px; }
-    .form-g input,.form-g select,.form-g textarea {
-      width:100%; padding:.7rem .875rem; border:2px solid #eee; border-radius:var(--rs);
-      font-family:var(--fb); font-size:.93rem; outline:none; transition:var(--tr); background:white;
+    @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+    .modal-handle{width:38px;height:4px;background:#eee;border-radius:2px;margin:0 auto 1.25rem;}
+    .modal-title{font-family:var(--fd);font-size:1.25rem;margin-bottom:1.375rem;}
+    .form-g{margin-bottom:1.125rem;}
+    .form-g label{display:block;font-size:.78rem;font-weight:800;margin-bottom:.4rem;color:var(--text-lt);text-transform:uppercase;letter-spacing:.5px;}
+    .form-g input,.form-g select,.form-g textarea{
+      width:100%;padding:.7rem .875rem;border:2px solid #eee;border-radius:var(--rs);
+      font-family:var(--fb);font-size:.93rem;outline:none;transition:var(--tr);background:#fff;
     }
-    .form-g input:focus,.form-g select:focus,.form-g textarea:focus { border-color:var(--rose); }
-    .form-g textarea { resize:vertical; min-height:72px; }
-    .upload-area {
-      border:2px dashed var(--rose); border-radius:var(--rs);
-      padding:1.75rem 1rem; text-align:center; cursor:pointer;
-      transition:var(--tr); background:var(--cream);
+    .form-g input:focus,.form-g select:focus,.form-g textarea:focus{border-color:var(--rose);}
+    .form-g textarea{resize:vertical;min-height:72px;}
+    .upload-area{
+      border:2px dashed var(--rose);border-radius:var(--rs);
+      padding:1.75rem 1rem;text-align:center;cursor:pointer;transition:var(--tr);background:var(--cream);
     }
-    .upload-area:hover { background:white; border-style:solid; }
-    .upload-area input { display:none; }
-    .upload-icon { font-size:2.25rem; margin-bottom:.625rem; }
-    .upload-text { font-weight:700; font-size:.93rem; }
-    .upload-hint { font-size:.77rem; color:var(--text-lt); margin-top:.2rem; }
-    .prev-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; margin-top:.875rem; }
-    .prev-item { position:relative; aspect-ratio:1; border-radius:8px; overflow:hidden; }
-    .prev-item img,.prev-item video { width:100%; height:100%; object-fit:cover; }
-    .prev-rm {
-      position:absolute; top:.2rem; right:.2rem;
-      background:rgba(0,0,0,.6); color:white; border:none;
-      border-radius:50%; width:20px; height:20px;
-      font-size:10px; cursor:pointer;
-      display:flex; align-items:center; justify-content:center;
+    .upload-area:hover{background:#fff;border-style:solid;}
+    .upload-area input{display:none;}
+    .upload-icon{font-size:2.25rem;margin-bottom:.625rem;}
+    .upload-text{font-weight:700;font-size:.93rem;}
+    .upload-hint{font-size:.77rem;color:var(--text-lt);margin-top:.2rem;}
+    .prev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.875rem;}
+    .prev-item{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;}
+    .prev-item img,.prev-item video{width:100%;height:100%;object-fit:cover;}
+    .prev-rm{
+      position:absolute;top:.2rem;right:.2rem;
+      background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;
+      width:20px;height:20px;font-size:10px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
     }
-    .modal-acts { display:flex; gap:.625rem; margin-top:1.375rem; }
-    .btn-sec {
-      flex:1; padding:.8rem; background:var(--cream); border:none;
-      border-radius:var(--rs); font-family:var(--fb); font-size:.93rem;
-      font-weight:700; color:var(--text-lt); cursor:pointer; transition:var(--tr);
+    .progress{width:100%;height:5px;background:#eee;border-radius:3px;margin-top:.5rem;}
+    .progress-bar{height:100%;background:linear-gradient(90deg,var(--rose),var(--peach));border-radius:3px;transition:width .3s;}
+    .modal-acts{display:flex;gap:.625rem;margin-top:1.375rem;}
+    .btn-sec{
+      flex:1;padding:.8rem;background:var(--cream);border:none;border-radius:var(--rs);
+      font-family:var(--fb);font-size:.93rem;font-weight:700;color:var(--text-lt);cursor:pointer;transition:var(--tr);
     }
-    .btn-sec:hover { background:#eee; }
-    .btn-sub {
-      flex:2; padding:.8rem;
-      background:linear-gradient(135deg,var(--rose),var(--peach));
-      border:none; border-radius:var(--rs);
-      font-family:var(--fb); font-size:.93rem; font-weight:800;
-      color:white; cursor:pointer; transition:var(--tr);
+    .btn-sec:hover{background:#eee;}
+    .btn-sub{
+      flex:2;padding:.8rem;background:linear-gradient(135deg,var(--rose),var(--peach));
+      border:none;border-radius:var(--rs);font-family:var(--fb);
+      font-size:.93rem;font-weight:800;color:#fff;cursor:pointer;transition:var(--tr);
     }
-    .btn-sub:hover { transform:translateY(-2px); box-shadow:var(--sh-h); }
-    .btn-sub:disabled { opacity:.55; cursor:not-allowed; transform:none; }
-    .progress { width:100%; height:5px; background:#eee; border-radius:3px; margin-top:.5rem; }
-    .progress-bar { height:100%; background:linear-gradient(90deg,var(--rose),var(--peach)); border-radius:3px; transition:width .3s; }
-    .warn-box { background:var(--yellow); border-radius:var(--rs); padding:.875rem 1rem; margin-bottom:1rem; font-size:.83rem; color:var(--text); }
-    .warn-box strong { display:block; margin-bottom:.25rem; }
+    .btn-sub:hover{transform:translateY(-2px);box-shadow:var(--sh-h);}
+    .btn-sub:disabled{opacity:.55;cursor:not-allowed;transform:none;}
 
-    /* ─── LIGHTBOX ─── */
-    .lightbox {
-      position:fixed; inset:0; background:rgba(0,0,0,.92);
-      display:none; align-items:center; justify-content:center;
-      z-index:2000;
+    /* ── LIGHTBOX ── */
+    .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:2000;}
+    .lightbox.active{display:flex;}
+    .lightbox img,.lightbox video{max-width:96vw;max-height:88vh;border-radius:var(--rs);}
+    .lb-close{
+      position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,.18);
+      border:none;color:#fff;width:40px;height:40px;border-radius:50%;
+      font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
     }
-    .lightbox.active { display:flex; }
-    .lightbox img,.lightbox video { max-width:96vw; max-height:88vh; border-radius:var(--rs); }
-    .lb-close {
-      position:absolute; top:1rem; right:1rem;
-      background:rgba(255,255,255,.18); border:none; color:white;
-      width:40px; height:40px; border-radius:50%; font-size:1.1rem;
-      cursor:pointer; display:flex; align-items:center; justify-content:center;
-    }
-    .lb-info { position:absolute; bottom:1.5rem; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.7); font-size:.8rem; text-align:center; }
+    .lb-info{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:.8rem;text-align:center;}
 
-    /* ─── TOAST ─── */
-    .toast {
-      position:fixed; bottom:5.5rem; left:50%;
+    /* ── TOAST ── */
+    .toast{
+      position:fixed;bottom:5.5rem;left:50%;
       transform:translateX(-50%) translateY(80px);
-      background:var(--text); color:white; padding:.65rem 1.375rem;
-      border-radius:24px; font-size:.88rem; font-weight:700;
-      z-index:3000; transition:transform .3s ease; pointer-events:none;
+      background:var(--text);color:#fff;padding:.65rem 1.375rem;
+      border-radius:24px;font-size:.88rem;font-weight:700;
+      z-index:3000;transition:transform .3s ease;pointer-events:none;
     }
-    .toast.show { transform:translateX(-50%) translateY(0); }
+    .toast.show{transform:translateX(-50%) translateY(0);}
 
-    /* ─── LOADING ─── */
-    .loading { text-align:center; padding:3rem 1rem; color:var(--text-lt); }
-    .spinner { width:30px; height:30px; border:3px solid var(--cream); border-top-color:var(--rose); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 1rem; }
-    @keyframes spin { to { transform:rotate(360deg); } }
+    /* ── LOADING / EMPTY ── */
+    .loading{text-align:center;padding:3rem 1rem;color:var(--text-lt);}
+    .spinner{width:30px;height:30px;border:3px solid var(--cream);border-top-color:var(--rose);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 1rem;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .empty{text-align:center;padding:3.5rem 1rem;color:var(--text-lt);}
+    .empty p{font-size:2.75rem;margin-bottom:.875rem;}
+    .empty h3{font-weight:800;margin-bottom:.4rem;color:var(--text);}
 
-    /* ─── EMPTY STATE ─── */
-    .empty { text-align:center; padding:3.5rem 1rem; color:var(--text-lt); }
-    .empty p { font-size:2.75rem; margin-bottom:.875rem; }
-    .empty h3 { font-weight:800; margin-bottom:.4rem; color:var(--text); }
+    /* ── ANIMATIONS ── */
+    .fi{animation:fadeIn .4s ease forwards;}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-    /* ─── ANIMATIONS ─── */
-    .fi { animation:fadeIn .4s ease forwards; }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-
-    /* ─── RESPONSIVE ─── */
-    @media(min-width:600px) {
-      .page { padding:2rem 1.5rem 2rem; }
-      .cat-grid { grid-template-columns:repeat(4,1fr); }
-      .mem-grid { grid-template-columns:repeat(3,1fr); }
-      .btm-nav { display:none; }
+    /* ── RESPONSIVE ── */
+    @media(min-width:600px){
+      .page{padding:2rem 1.5rem 2rem;}
+      .cat-grid{grid-template-columns:repeat(4,1fr);}
+      .mem-grid{grid-template-columns:repeat(3,1fr);}
+      .btm-nav{display:none;}
     }
   </style>
 </head>
 <body>
 
-<!-- ===================== LOGIN ===================== -->
-<div id="login-screen" class="screen">
-  <div class="login-bg"></div>
-  <div class="login-card">
-    <div class="login-emoji">🍜</div>
-    <h1 class="login-title">Ăn cùng<br><em>người mình thương</em></h1>
-    <p class="login-sub">Nhật ký ẩm thực của hai người 💕</p>
-
-    <button class="btn-google" onclick="signInGoogle()">
-      <svg width="20" height="20" viewBox="0 0 48 48">
-        <path fill="#FFC107" d="M43.6 20H24v8h11.3C33.8 33.7 29.4 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 3l5.7-5.7C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.9 0 20-7.9 20-21 0-1.4-.1-2.7-.4-4z"/>
-        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.1 8.1 3l5.7-5.7C34.5 5.1 29.5 3 24 3 16.3 3 9.7 7.9 6.3 14.7z"/>
-        <path fill="#4CAF50" d="M24 45c5.2 0 9.9-1.9 13.5-5L31 34c-1.9 1.4-4.3 2.2-7 2.2-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.7 40.1 16.3 45 24 45z"/>
-        <path fill="#1565C0" d="M43.6 20H24v8h11.3c-.7 2-2.1 3.7-3.8 5L38 38.5C41.6 35.1 44 30 44 24c0-1.4-.1-2.7-.4-4z"/>
-      </svg>
-      Đăng nhập bằng Google
-    </button>
-    <div class="divider">hoặc dùng email</div>
-    <div class="input-g"><label>Email</label><input type="email" id="l-email" placeholder="ban@example.com"></div>
-    <div class="input-g"><label>Mật khẩu</label><input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')signInEmail()"></div>
-    <button class="btn-prim" onclick="signInEmail()">Đăng nhập →</button>
-    <p style="margin-top:.875rem;font-size:.83rem;color:var(--text-lt);">Chưa có tài khoản? <a class="auth-link" onclick="createAcc()">Tạo mới</a></p>
-    <div id="auth-err"></div>
-  </div>
-</div>
-
-<!-- ===================== APP ===================== -->
-<div id="app-screen" class="screen">
-  <header class="header">
-    <div class="header-logo">🍜 Ăn cùng nhau</div>
-    <nav class="header-nav">
-      <button class="nav-btn active" data-pg="home" onclick="goPage('home')">🏠 Trang chủ</button>
-      <button class="nav-btn" data-pg="timeline" onclick="goPage('timeline')">📷 Timeline</button>
-      <button class="nav-btn" onclick="doSignOut()" style="color:#e57373;">👋 Đăng xuất</button>
-    </nav>
-  </header>
-
-  <div id="p-home"     class="page active"></div>
-  <div id="p-category" class="page"></div>
-  <div id="p-dish"     class="page"></div>
-  <div id="p-timeline" class="page"></div>
-
-  <nav class="btm-nav">
-    <button class="btm-btn active" data-pg="home" onclick="goPage('home')"><span>🏠</span><span>Trang chủ</span></button>
-    <button class="btm-btn" data-pg="timeline" onclick="goPage('timeline')"><span>📷</span><span>Timeline</span></button>
-    <button class="btm-btn add-center" onclick="openUpload(null)"><span>＋</span><span>Thêm</span></button>
-    <button class="btm-btn" onclick="doSignOut()"><span>👤</span><span>Thoát</span></button>
+<header class="header">
+  <div class="header-logo">🍜 Ăn cùng nhau</div>
+  <nav class="header-nav">
+    <button class="nav-btn active" data-pg="home"     onclick="goPage('home')">🏠 Trang chủ</button>
+    <button class="nav-btn"        data-pg="timeline" onclick="goPage('timeline')">📷 Timeline</button>
   </nav>
-</div>
+</header>
 
-<!-- ====== MODAL: ADD DISH ====== -->
+<div id="p-home"     class="page active"></div>
+<div id="p-category" class="page"></div>
+<div id="p-dish"     class="page"></div>
+<div id="p-timeline" class="page"></div>
+
+<nav class="btm-nav">
+  <button class="btm-btn active" data-pg="home"     onclick="goPage('home')"><span>🏠</span><span>Trang chủ</span></button>
+  <button class="btm-btn"        data-pg="timeline" onclick="goPage('timeline')"><span>📷</span><span>Timeline</span></button>
+  <button class="btm-btn add-btn-c" onclick="openUpload(null)"><span>＋</span><span>Thêm</span></button>
+</nav>
+
+<!-- ── MODAL: ADD DISH ── -->
 <div class="modal-ov" id="m-dish">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -444,14 +328,14 @@
   </div>
 </div>
 
-<!-- ====== MODAL: UPLOAD MEMORY ====== -->
+<!-- ── MODAL: UPLOAD ── -->
 <div class="modal-ov" id="m-upload">
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 class="modal-title">📸 Thêm kỷ niệm</h2>
-    <div id="m-fb-warn" class="warn-box" style="display:none;">
-      <strong>⚠️ Đang chạy chế độ Demo</strong>
-      Cập nhật <code>firebaseConfig</code> trong file HTML để lưu dữ liệu thực.
+    <div id="m-warn" class="info-box" style="display:none;">
+      <strong>⚠️ Chế độ Demo</strong>
+      Điền <code>SUPABASE_URL</code> &amp; <code>SUPABASE_KEY</code> để lưu dữ liệu thực.
     </div>
     <div class="form-g"><label>Món ăn</label><select id="m-up-dish"></select></div>
     <div class="form-g"><label>Ngày ăn</label><input type="date" id="m-up-date"></div>
@@ -461,14 +345,14 @@
         <input type="file" id="m-files" multiple accept="image/*,video/*" onchange="onFiles(this)">
         <div class="upload-icon">📷</div>
         <div class="upload-text">Nhấn để chọn ảnh hoặc video</div>
-        <div class="upload-hint">JPG, PNG, MP4, MOV · Nhiều file cùng lúc</div>
+        <div class="upload-hint">JPG, PNG, MP4 · Nhiều file cùng lúc</div>
       </div>
       <div class="prev-grid" id="m-preview"></div>
     </div>
     <div class="form-g"><label>Ghi chú (tuỳ chọn)</label><textarea id="m-up-note" placeholder="Ngon quá! Nhớ mãi bữa này... 💭"></textarea></div>
     <div id="m-prog" style="display:none;">
       <div class="progress"><div class="progress-bar" id="prog-bar" style="width:0%"></div></div>
-      <p style="font-size:.77rem;color:var(--text-lt);margin-top:.4rem;text-align:center;">Đang tải lên...</p>
+      <p style="font-size:.77rem;color:var(--text-lt);margin-top:.4rem;text-align:center;" id="prog-txt">Đang tải lên...</p>
     </div>
     <div class="modal-acts">
       <button class="btn-sec" onclick="closeM('m-upload')">Hủy</button>
@@ -477,7 +361,7 @@
   </div>
 </div>
 
-<!-- ====== LIGHTBOX ====== -->
+<!-- ── LIGHTBOX ── -->
 <div class="lightbox" id="lightbox" onclick="closeLB()">
   <button class="lb-close" onclick="closeLB()">✕</button>
   <img id="lb-img" src="" alt="" style="display:none;">
@@ -485,65 +369,57 @@
   <div class="lb-info" id="lb-info"></div>
 </div>
 
-<!-- ====== TOAST ====== -->
 <div class="toast" id="toast"></div>
 
-<!-- ===================== SCRIPT ===================== -->
+<!-- ════════════════════════════════════════════════════════
+     SCRIPT
+     ● Biến `sbClient` chỉ được khai báo đúng 1 lần duy nhất
+     ● Không dùng lại createClient() ở bất kỳ chỗ nào khác
+     ════════════════════════════════════════════════════════ -->
 <script>
-// ══════════════════════════════════════════════
-// 🔥 FIREBASE CONFIG
-// Truy cập https://console.firebase.google.com
-// → Dự án của bạn → Project Settings → Your apps
-// → Dán config vào đây
-// ══════════════════════════════════════════════
-const FB_CFG = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  projectId:         "YOUR_PROJECT",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
-};
+/* ───────────────────────────────────────────────
+   ⚙️  SUPABASE CONFIG
+   Lấy từ: Supabase Dashboard → Project Settings → API
+   ─────────────────────────────────────────────── */
+const SUPABASE_URL = 'https://rrqfdsnottmjtgoxydhz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJycWZkc25vdHRtanRnb3h5ZGh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzU5NjcsImV4cCI6MjA5MDgxMTk2N30.Q9a0GORy3tGdmY3OwKIevt-rK-btnY-tM9peCQssYm4';
 
-// ══════════════════════════════════════════════
-// 🌱 KHỞI TẠO
-// ══════════════════════════════════════════════
-const IS_DEMO = FB_CFG.apiKey === "YOUR_API_KEY";
-let db, auth, storage;
-if (!IS_DEMO) {
-  firebase.initializeApp(FB_CFG);
-  db      = firebase.firestore();
-  auth    = firebase.auth();
-  storage = firebase.storage();
-}
+const IS_DEMO = SUPABASE_URL.includes('YOUR_PROJECT');
 
-// ══════════════════════════════════════════════
-// 📦 DỮ LIỆU DEMO
-// ══════════════════════════════════════════════
-const D_CATS = [
-  { id:'sang', name:'Ăn sáng', emoji:'🌅', order:1 },
-  { id:'vat',  name:'Ăn vặt',  emoji:'🧋', order:2 },
-  { id:'trua', name:'Ăn trưa', emoji:'☀️', order:3 },
-  { id:'toi',  name:'Ăn tối',  emoji:'🌙', order:4 }
+/*
+ * sbClient — khai báo 1 lần, dùng xuyên suốt toàn file.
+ * supabase.createClient() được gọi đúng 1 lần từ thư viện
+ * UMD đã load ở <head>.  KHÔNG tạo thêm client ở bất kỳ nơi nào.
+ */
+const sbClient = IS_DEMO ? null : supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ───────────────────────────────────────────────
+   DEMO DATA (dùng khi chưa kết nối Supabase)
+   ─────────────────────────────────────────────── */
+const DEMO_CATS = [
+  {id:'sang',name:'Ăn sáng',emoji:'🌅',order:1},
+  {id:'vat', name:'Ăn vặt', emoji:'🧋',order:2},
+  {id:'trua',name:'Ăn trưa',emoji:'☀️',order:3},
+  {id:'toi', name:'Ăn tối', emoji:'🌙',order:4},
 ];
-const D_DISHES = [
-  {id:'d1',  categoryId:'sang', name:'Bánh mì thịt',    isEaten:true},
-  {id:'d2',  categoryId:'sang', name:'Phở bò',           isEaten:true},
-  {id:'d3',  categoryId:'sang', name:'Cháo lòng',        isEaten:false},
-  {id:'d4',  categoryId:'sang', name:'Hủ tiếu Nam Vang', isEaten:false},
-  {id:'d5',  categoryId:'vat',  name:'Trà sữa trân châu',isEaten:true},
-  {id:'d6',  categoryId:'vat',  name:'Bánh tráng trộn',  isEaten:true},
-  {id:'d7',  categoryId:'vat',  name:'Chè thập cẩm',     isEaten:false},
-  {id:'d8',  categoryId:'vat',  name:'Gỏi cuốn',         isEaten:true},
-  {id:'d9',  categoryId:'trua', name:'Cơm tấm sườn bì',  isEaten:true},
-  {id:'d10', categoryId:'trua', name:'Bún bò Huế',        isEaten:true},
-  {id:'d11', categoryId:'trua', name:'Mì Quảng',          isEaten:false},
-  {id:'d12', categoryId:'toi',  name:'Lẩu Thái',          isEaten:true},
-  {id:'d13', categoryId:'toi',  name:'Nướng BBQ',         isEaten:true},
-  {id:'d14', categoryId:'toi',  name:'Hotpot',            isEaten:false},
+const DEMO_DISHES = [
+  {id:'d1', category_id:'sang',name:'Bánh mì thịt',     is_eaten:true},
+  {id:'d2', category_id:'sang',name:'Phở bò',            is_eaten:true},
+  {id:'d3', category_id:'sang',name:'Cháo lòng',         is_eaten:false},
+  {id:'d4', category_id:'sang',name:'Hủ tiếu Nam Vang',  is_eaten:false},
+  {id:'d5', category_id:'vat', name:'Trà sữa trân châu', is_eaten:true},
+  {id:'d6', category_id:'vat', name:'Bánh tráng trộn',   is_eaten:true},
+  {id:'d7', category_id:'vat', name:'Chè thập cẩm',      is_eaten:false},
+  {id:'d8', category_id:'vat', name:'Gỏi cuốn',          is_eaten:true},
+  {id:'d9', category_id:'trua',name:'Cơm tấm sườn bì',   is_eaten:true},
+  {id:'d10',category_id:'trua',name:'Bún bò Huế',         is_eaten:true},
+  {id:'d11',category_id:'trua',name:'Mì Quảng',           is_eaten:false},
+  {id:'d12',category_id:'toi', name:'Lẩu Thái',           is_eaten:true},
+  {id:'d13',category_id:'toi', name:'Nướng BBQ',          is_eaten:true},
+  {id:'d14',category_id:'toi', name:'Hotpot',             is_eaten:false},
 ];
-const D_MEMS = (() => {
-  const seeds = [
+const DEMO_MEMS = (() => {
+  const seeds=[
     ['2024-01-28','d1'],['2024-02-14','d12'],['2024-03-08','d9'],
     ['2024-04-20','d5'],['2024-05-01','d2'], ['2024-06-15','d13'],
     ['2024-07-04','d6'],['2024-08-12','d9'],['2024-09-15','d10'],
@@ -555,137 +431,161 @@ const D_MEMS = (() => {
     ['2026-01-15','d9'],['2026-02-14','d12'],['2026-03-08','d5'],
     ['2026-04-03','d1'],
   ];
-  return seeds.map(([date, dishId], i) => ({
-    id: 'mem'+i, dishId, date,
-    mediaUrls: [`https://picsum.photos/seed/${dishId+date}/400/400`],
-    mediaTypes: ['image'],
-    note: i%4===0 ? 'Ngon quá trời! 😍' : i%4===1 ? 'Nhớ mãi hôm nay 💕' : ''
+  return seeds.map(([date,dish_id],i)=>({
+    id:'mem'+i, dish_id, date,
+    media_urls:[`https://picsum.photos/seed/${dish_id+date}/400/400`],
+    media_types:['image'],
+    note: i%4===0?'Ngon quá trời! 😍': i%4===1?'Nhớ mãi hôm nay 💕':'',
   }));
 })();
 
-// ══════════════════════════════════════════════
-// 🧠 STATE
-// ══════════════════════════════════════════════
+/* ───────────────────────────────────────────────
+   APP STATE
+   ─────────────────────────────────────────────── */
 const S = {
-  user: null, page: 'home',
-  catId: null, dishId: null,
-  cats: [], dishes: [], mems: [],
-  files: []
+  page:'home', catId:null, dishId:null,
+  cats:[], dishes:[], mems:[], files:[],
 };
 
-// ══════════════════════════════════════════════
-// 🔐 AUTH
-// ══════════════════════════════════════════════
-(function init() {
-  if (IS_DEMO) { S.user = {displayName:'Demo', email:'demo@demo.com'}; showApp(); return; }
-  auth.onAuthStateChanged(u => u ? (S.user=u, showApp()) : showLogin());
-})();
-
-async function signInGoogle() {
-  if (IS_DEMO) return;
-  try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
-  catch(e) { authErr(e.message); }
-}
-async function signInEmail() {
-  if (IS_DEMO) { showApp(); return; }
-  const e = $('l-email').value, p = $('l-pass').value;
-  if (!e||!p) { authErr('Vui lòng điền đầy đủ'); return; }
-  try { await auth.signInWithEmailAndPassword(e,p); }
-  catch { authErr('Sai thông tin đăng nhập. Thử tạo tài khoản mới?'); }
-}
-async function createAcc() {
-  if (IS_DEMO) return;
-  const e = $('l-email').value, p = $('l-pass').value;
-  if (!e||!p) { authErr('Vui lòng điền đầy đủ'); return; }
-  try { await auth.createUserWithEmailAndPassword(e,p); }
-  catch(err) { authErr(err.message); }
-}
-async function doSignOut() {
-  if (!IS_DEMO) await auth.signOut();
-  showLogin();
-}
-function authErr(m) {
-  const el=$('auth-err'); el.textContent=m; el.style.display='block';
-}
-
-// ══════════════════════════════════════════════
-// 🗃️ DATA
-// ══════════════════════════════════════════════
+/* ───────────────────────────────────────────────
+   DATA LAYER  (tất cả đều dùng sbClient)
+   ─────────────────────────────────────────────── */
 async function loadData() {
   if (IS_DEMO) {
-    S.cats=[...D_CATS]; S.dishes=[...D_DISHES]; S.mems=[...D_MEMS]; return;
+    S.cats=[...DEMO_CATS]; S.dishes=[...DEMO_DISHES]; S.mems=[...DEMO_MEMS];
+    return;
   }
-  const [cs,ds,ms] = await Promise.all([
-    db.collection('categories').orderBy('order').get(),
-    db.collection('dishes').get(),
-    db.collection('memories').orderBy('date','desc').get()
+
+  const [{data:cats},{data:dishes},{data:mems}] = await Promise.all([
+    sbClient.from('categories').select('*').order('order'),
+    sbClient.from('dishes').select('*'),
+    sbClient.from('memories').select('*').order('date',{ascending:false}),
   ]);
-  S.cats  = cs.empty ? await seedCats() : cs.docs.map(d=>({id:d.id,...d.data()}));
-  S.dishes= ds.docs.map(d=>({id:d.id,...d.data()}));
-  S.mems  = ms.docs.map(d=>({id:d.id,...d.data()}));
-}
-async function seedCats() {
-  const list=[{name:'Ăn sáng',emoji:'🌅',order:1},{name:'Ăn vặt',emoji:'🧋',order:2},
-              {name:'Ăn trưa',emoji:'☀️',order:3},{name:'Ăn tối',emoji:'🌙',order:4}];
-  const out=[];
-  for(const c of list){ const r=await db.collection('categories').add(c); out.push({id:r.id,...c}); }
-  return out;
+
+  S.cats   = (cats   && cats.length)   ? cats   : await seedCategories();
+  S.dishes = dishes  || [];
+  S.mems   = mems    || [];
 }
 
-async function doAddDish(name, catId) {
-  const dish = { name, categoryId:catId, isEaten:false, createdAt: IS_DEMO ? new Date().toISOString() : firebase.firestore.FieldValue.serverTimestamp() };
-  if (!IS_DEMO) { const r=await db.collection('dishes').add(dish); dish.id=r.id; }
-  else dish.id = 'dx_'+Date.now();
-  S.dishes.push(dish);
-  return dish;
+async function seedCategories() {
+  const rows=[
+    {id:'sang',name:'Ăn sáng',emoji:'🌅',order:1},
+    {id:'vat', name:'Ăn vặt', emoji:'🧋',order:2},
+    {id:'trua',name:'Ăn trưa',emoji:'☀️',order:3},
+    {id:'toi', name:'Ăn tối', emoji:'🌙',order:4},
+  ];
+  await sbClient.from('categories').insert(rows);
+  return rows;
 }
+
+async function doAddDish(name, categoryId) {
+  const row = {name, category_id:categoryId, is_eaten:false};
+  if (IS_DEMO) { row.id='dx_'+Date.now(); S.dishes.push(row); return row; }
+  const {data,error} = await sbClient.from('dishes').insert(row).select().single();
+  if (error) throw new Error(error.message);
+  S.dishes.push(data);
+  return data;
+}
+
 async function doToggleEaten(id) {
-  const d=S.dishes.find(x=>x.id===id); if(!d) return;
-  d.isEaten=!d.isEaten;
-  if(!IS_DEMO) await db.collection('dishes').doc(id).update({isEaten:d.isEaten});
-  return d.isEaten;
+  const d = S.dishes.find(x=>x.id===id);
+  if (!d) return false;
+  d.is_eaten = !d.is_eaten;
+  if (!IS_DEMO) await sbClient.from('dishes').update({is_eaten:d.is_eaten}).eq('id',id);
+  return d.is_eaten;
 }
+
 async function doAddMemory(dishId, date, files, note) {
   if (IS_DEMO) {
-    const mem = {
-      id:'mx_'+Date.now(), dishId, date, note,
-      mediaUrls: files.map((_,i)=>`https://picsum.photos/seed/${Date.now()+i}/400/400`),
-      mediaTypes: files.map(f=>f.type.startsWith('video')?'video':'image')
+    const mem={
+      id:'mx_'+Date.now(), dish_id:dishId, date, note,
+      media_urls:files.map((_,i)=>`https://picsum.photos/seed/${Date.now()+i}/400/400`),
+      media_types:files.map(f=>f.type.startsWith('video')?'video':'image'),
     };
-    S.mems.unshift(mem); return mem;
+    S.mems.unshift(mem);
+    return mem;
   }
+
   const urls=[], types=[];
+
   for (let i=0; i<files.length; i++) {
-    const f=files[i], path=`memories/${S.user.uid}/${Date.now()}_${f.name}`;
-    const ref=storage.ref(path);
-    await new Promise((res,rej)=>{
-      ref.put(f).on('state_changed',
-        s=>{ $('prog-bar').style.width=((i+s.bytesTransferred/s.totalBytes)/files.length*100)+'%'; },
-        rej, async ()=>{ urls.push(await ref.getDownloadURL()); types.push(f.type.startsWith('video')?'video':'image'); res(); }
-      );
-    });
+    const f    = files[i];
+    const ext  = f.name.split('.').pop();
+    const path = `memories/${Date.now()}_${i}.${ext}`;
+
+    /* upload vào Supabase Storage bucket "media" */
+    const {error:upErr} = await sbClient.storage.from('media').upload(path, f);
+    if (upErr) throw new Error('Upload thất bại: '+upErr.message);
+
+    /* lấy public URL (bucket phải là public) */
+    const {data:urlData} = sbClient.storage.from('media').getPublicUrl(path);
+    urls.push(urlData.publicUrl);
+    types.push(f.type.startsWith('video')?'video':'image');
+
+    /* cập nhật progress */
+    const pct = Math.round(((i+1)/files.length)*100);
+    $('prog-bar').style.width = pct+'%';
+    $('prog-txt').textContent = `Đã tải ${i+1}/${files.length} file (${pct}%)`;
   }
-  const mem = { dishId, date, note, mediaUrls:urls, mediaTypes:types,
-    uploadedBy:S.user.uid, uploadedAt:firebase.firestore.FieldValue.serverTimestamp() };
-  const r=await db.collection('memories').add(mem);
-  const nm={id:r.id,...mem}; S.mems.unshift(nm); return nm;
+
+  const row = {dish_id:dishId, date, media_urls:urls, media_types:types, note};
+  const {data,error} = await sbClient.from('memories').insert(row).select().single();
+  if (error) throw new Error(error.message);
+  S.mems.unshift(data);
+  return data;
 }
 
-// ══════════════════════════════════════════════
-// 🎨 RENDER
-// ══════════════════════════════════════════════
-function renderHome() {
-  const notEaten = S.dishes.filter(d=>!d.isEaten).sort(()=>Math.random()-.5).slice(0,5);
-  const sugg = notEaten.length ? notEaten : S.dishes.sort(()=>Math.random()-.5).slice(0,5);
-  const catColors = ['#FFF0F5','#FFF8EC','#F0FFF4','#F0F4FF'];
-  const counts = {}; S.cats.forEach(c=>counts[c.id]=S.dishes.filter(d=>d.categoryId===c.id).length);
-  const recent = [...S.mems].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
-  const greet = ['buổi sáng','buổi trưa','buổi chiều','buổi tối'][Math.min(3,Math.floor(new Date().getHours()/6))];
+/* ───────────────────────────────────────────────
+   REALTIME  (subscribe 1 lần sau khi data đã load)
+   ─────────────────────────────────────────────── */
+function startRealtime() {
+  if (IS_DEMO) return;
 
-  $('p-home').innerHTML = `
+  sbClient
+    .channel('db-changes')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'memories'}, payload=>{
+      if (!S.mems.find(m=>m.id===payload.new.id)) S.mems.unshift(payload.new);
+      reRender();
+    })
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'memories'}, payload=>{
+      S.mems = S.mems.filter(m=>m.id!==payload.old.id);
+      reRender();
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'dishes'}, payload=>{
+      if (!S.dishes.find(d=>d.id===payload.new.id)) S.dishes.push(payload.new);
+      reRender();
+    })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'dishes'}, payload=>{
+      const idx=S.dishes.findIndex(d=>d.id===payload.new.id);
+      if (idx!==-1) S.dishes[idx]=payload.new;
+      reRender();
+    })
+    .subscribe();
+}
+
+function reRender(){
+  if(S.page==='home')     renderHome();
+  if(S.page==='category') renderCat(S.catId);
+  if(S.page==='dish')     renderDish(S.dishId);
+  if(S.page==='timeline') renderTimeline();
+}
+
+/* ───────────────────────────────────────────────
+   RENDER
+   ─────────────────────────────────────────────── */
+function renderHome(){
+  const hr     = new Date().getHours();
+  const greet  = ['buổi sáng','buổi trưa','buổi chiều','buổi tối'][Math.min(3,Math.floor(hr/6))];
+  const notEaten= S.dishes.filter(d=>!d.is_eaten).sort(()=>Math.random()-.5).slice(0,5);
+  const sugg   = notEaten.length ? notEaten : S.dishes.sort(()=>Math.random()-.5).slice(0,5);
+  const cols   = ['#FFF0F5','#FFF8EC','#F0FFF4','#F0F4FF'];
+  const counts = {};
+  S.cats.forEach(c=>counts[c.id]=S.dishes.filter(d=>d.category_id===c.id).length);
+  const recent = [...S.mems].slice(0,6);
+
+  $('p-home').innerHTML=`
     <h1 class="pg-title">Chào ${greet} <span>yêu ơi!</span> 💕</h1>
-    ${IS_DEMO?`<div style="background:var(--yellow);border-radius:var(--rs);padding:.75rem 1rem;margin-bottom:1.5rem;font-size:.83rem;">
-      <strong>🎯 Chế độ Demo</strong> — Cập nhật <code>FB_CFG</code> trong file HTML để dùng Firebase thật.</div>`:''}
+    ${IS_DEMO?`<div class="info-box"><strong>🎯 Chế độ Demo</strong>Điền <code>SUPABASE_URL</code> &amp; <code>SUPABASE_KEY</code> để dùng Supabase thật.</div>`:''}
     <div class="suggest-box">
       <div class="suggest-lbl">✨ Gợi ý hôm nay</div>
       <div class="suggest-ttl">Ăn gì hôm nay nhỉ? 🤔</div>
@@ -694,126 +594,136 @@ function renderHome() {
     <div class="sec-label">📂 Danh mục món ăn</div>
     <div class="cat-grid">
       ${S.cats.map((c,i)=>`
-        <div class="cat-card fi" style="animation-delay:${i*.08}s;background:${catColors[i]||'white'}" onclick="openCat('${c.id}')">
+        <div class="cat-card fi" style="animation-delay:${i*.08}s;background:${cols[i]||'#fff'}" onclick="openCat('${c.id}')">
           <div class="cat-emoji">${c.emoji}</div>
           <div class="cat-name">${c.name}</div>
           <div class="cat-count">${counts[c.id]||0} món</div>
         </div>`).join('')}
     </div>
     ${recent.length?`
-      <div class="sec-label" style="margin-top:1.75rem;">📸 Kỷ niệm gần đây</div>
-      <div class="recent-grid">
-        ${recent.map((m,i)=>`
-          <div class="recent-item fi" style="animation-delay:${i*.05}s" onclick="openLB('${m.mediaUrls[0]}','${m.mediaTypes?.[0]||'image'}','')">
-            <img src="${m.mediaUrls[0]}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/err${i}/200/200'">
-          </div>`).join('')}
-      </div>`:''}
+    <div class="sec-label" style="margin-top:1.75rem;">📸 Kỷ niệm gần đây</div>
+    <div class="recent-grid">
+      ${recent.map((m,i)=>`
+        <div class="recent-item fi" style="animation-delay:${i*.05}s"
+             onclick="openLB('${m.media_urls[0]}','${m.media_types?.[0]||'image'}','')">
+          <img src="${m.media_urls[0]}" loading="lazy" alt=""
+               onerror="this.src='https://picsum.photos/seed/rc${i}/200/200'">
+        </div>`).join('')}
+    </div>`:''}
   `;
 }
 
-function renderCat(catId) {
-  const cat = S.cats.find(c=>c.id===catId);
-  if (!cat) return;
-  const dishes = S.dishes.filter(d=>d.categoryId===catId);
-  $('p-category').innerHTML = `
+function renderCat(catId){
+  const cat=S.cats.find(c=>c.id===catId);
+  if(!cat) return;
+  const dishes=S.dishes.filter(d=>d.category_id===catId);
+  $('p-category').innerHTML=`
     <button class="back-btn" onclick="goPage('home')">← Trang chủ</button>
     <h1 class="pg-title">${cat.emoji} ${cat.name}</h1>
-    <button class="add-btn" onclick="openAddDish('${catId}')">＋ Thêm món mới</button>
-    ${!dishes.length?`<div class="empty"><p>🍽️</p><h3>Chưa có món nào</h3><p style="font-size:.88rem">Thêm món đầu tiên ngay nhé!</p></div>`:`
-    <div class="dishes">
-      ${dishes.map((d,i)=>{
-        const mc=S.mems.filter(m=>m.dishId===d.id).length;
-        return `<div class="dish-card fi" style="animation-delay:${i*.05}s">
-          <div class="dish-chk ${d.isEaten?'on':''}" onclick="event.stopPropagation();onToggle('${d.id}',this)"></div>
+    <button class="add-dish-btn" onclick="openAddDish('${catId}')">＋ Thêm món mới</button>
+    ${!dishes.length
+      ?`<div class="empty"><p>🍽️</p><h3>Chưa có món nào</h3><p style="font-size:.88rem">Thêm món đầu tiên ngay nhé!</p></div>`
+      :`<div class="dishes">${dishes.map((d,i)=>{
+        const mc=S.mems.filter(m=>m.dish_id===d.id).length;
+        return`<div class="dish-card fi" style="animation-delay:${i*.05}s">
+          <div class="dish-chk ${d.is_eaten?'on':''}" onclick="event.stopPropagation();onToggle('${d.id}',this)"></div>
           <div class="dish-info" onclick="openDish('${d.id}')">
             <div class="dish-name">${d.name}</div>
-            <div class="dish-meta">${mc} kỷ niệm${d.isEaten?' · ✅ Đã từng ăn':' · ⭕ Chưa ăn'}</div>
+            <div class="dish-meta">${mc} kỷ niệm${d.is_eaten?' · ✅ Đã từng ăn':' · ⭕ Chưa ăn'}</div>
           </div>
           <div class="dish-arr" onclick="openDish('${d.id}')">›</div>
-        </div>`;
-      }).join('')}
-    </div>`}
+        </div>`;}).join('')}</div>`}
   `;
 }
 
-function renderDish(dishId) {
-  const dish = S.dishes.find(d=>d.id===dishId);
-  const cat  = dish ? S.cats.find(c=>c.id===dish.categoryId) : null;
-  if (!dish) return;
-  const mems = S.mems.filter(m=>m.dishId===dishId).sort((a,b)=>b.date.localeCompare(a.date));
-  $('p-dish').innerHTML = `
+function renderDish(dishId){
+  const dish=S.dishes.find(d=>d.id===dishId);
+  const cat =dish?S.cats.find(c=>c.id===dish.category_id):null;
+  if(!dish) return;
+  const mems=S.mems.filter(m=>m.dish_id===dishId).sort((a,b)=>b.date.localeCompare(a.date));
+  $('p-dish').innerHTML=`
     <button class="back-btn" onclick="goPage('category')">← ${cat?.name||'Danh mục'}</button>
     <h1 class="pg-title">${dish.name}</h1>
-    <button class="add-btn" onclick="openUpload('${dishId}')">📸 Thêm kỷ niệm</button>
-    ${!mems.length?`<div class="empty"><p>📷</p><h3>Chưa có kỷ niệm nào</h3><p style="font-size:.88rem">Upload ảnh đầu tiên ngay!</p></div>`:`
-    <div class="mem-grid">
-      ${mems.map((m,i)=>{
-        const isV=m.mediaTypes?.[0]==='video';
-        return `<div class="mem-card fi" style="animation-delay:${i*.05}s" onclick="openLB('${m.mediaUrls[0]}','${m.mediaTypes?.[0]||'image'}','${fmtDate(m.date)}')">
-          ${isV?`<video src="${m.mediaUrls[0]}" muted playsinline></video>`:`<img src="${m.mediaUrls[0]}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/${m.id}/300/300'">`}
+    <button class="add-dish-btn" onclick="openUpload('${dishId}')">📸 Thêm kỷ niệm</button>
+    ${!mems.length
+      ?`<div class="empty"><p>📷</p><h3>Chưa có kỷ niệm</h3><p style="font-size:.88rem">Upload ảnh đầu tiên ngay!</p></div>`
+      :`<div class="mem-grid">${mems.map((m,i)=>{
+        const isV=m.media_types?.[0]==='video';
+        return`<div class="mem-card fi" style="animation-delay:${i*.05}s"
+                    onclick="openLB('${m.media_urls[0]}','${m.media_types?.[0]||'image'}','${fmtDate(m.date)}')">
+          ${isV?`<video src="${m.media_urls[0]}" muted playsinline></video>`
+               :`<img src="${m.media_urls[0]}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/${m.id}/300/300'">`}
           <div class="mem-date">${fmtDate(m.date)}</div>
           ${m.note?`<div class="mem-note-badge">💭</div>`:''}
-        </div>`;
-      }).join('')}
-    </div>`}
+        </div>`;}).join('')}</div>`}
   `;
 }
 
-function renderTimeline() {
-  if (!S.mems.length) {
-    $('p-timeline').innerHTML=`<h1 class="pg-title">📷 <span>Timeline</span></h1><div class="empty"><p>🖼️</p><h3>Chưa có kỷ niệm</h3><p style="font-size:.88rem">Hãy ghi lại những bữa ăn đầu tiên!</p></div>`;
+function renderTimeline(){
+  if(!S.mems.length){
+    $('p-timeline').innerHTML=`<h1 class="pg-title">📷 <span>Timeline</span></h1>
+      <div class="empty"><p>🖼️</p><h3>Chưa có kỷ niệm</h3><p style="font-size:.88rem">Hãy ghi lại bữa ăn đầu tiên!</p></div>`;
     return;
   }
   const sorted=[...S.mems].sort((a,b)=>b.date.localeCompare(a.date));
-
-  // Group year→month→day
   const grp={};
   sorted.forEach(m=>{
-    const [y,mo,d]=m.date.split('-');
-    if(!grp[y])grp[y]={};if(!grp[y][mo])grp[y][mo]={};
+    const[y,mo,d]=m.date.split('-');
+    if(!grp[y])grp[y]={};
+    if(!grp[y][mo])grp[y][mo]={};
     if(!grp[y][mo][d])grp[y][mo][d]=[];
-    m.mediaUrls.forEach((u,i)=>grp[y][mo][d].push({url:u,type:m.mediaTypes?.[i]||'image',note:m.note,date:m.date}));
+    m.media_urls.forEach((u,i)=>grp[y][mo][d].push({url:u,type:m.media_types?.[i]||'image',date:m.date}));
   });
 
-  // All photos for masonry
-  const allPh=sorted.flatMap(m=>m.mediaUrls.map((u,i)=>({url:u,type:m.mediaTypes?.[i]||'image',date:m.date}))).slice(0,24);
+  const allPh=sorted.flatMap(m=>m.media_urls.map((u,i)=>({url:u,type:m.media_types?.[i]||'image',date:m.date}))).slice(0,24);
+  const total=sorted.reduce((s,m)=>s+m.media_urls.length,0);
   const MO=['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
-  const totalAll = sorted.reduce((s,m)=>s+m.mediaUrls.length,0);
 
-  let html=`<h1 class="pg-title">📷 <span>Timeline</span></h1>
-    <div class="sec-label">🖼️ Tất cả · ${totalAll} tấm ảnh</div>
+  let html=`
+    <h1 class="pg-title">📷 <span>Timeline</span></h1>
+    <div class="sec-label">🖼️ Tất cả · ${total} tấm ảnh</div>
     <div class="tl-masonry">
       ${allPh.map((p,i)=>`
-        <div class="tl-item fi" style="animation-delay:${i*.025}s" onclick="openLB('${p.url}','${p.type}','${fmtDate(p.date)}')">
-          ${p.type==='video'?`<video src="${p.url}" muted playsinline></video>`:`<img src="${p.url}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/tl${i}/300/350'">`}
+        <div class="tl-item fi" style="animation-delay:${i*.025}s"
+             onclick="openLB('${p.url}','${p.type}','${fmtDate(p.date)}')">
+          ${p.type==='video'
+            ?`<video src="${p.url}" muted playsinline></video>`
+            :`<img src="${p.url}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/tl${i}/300/350'">`}
         </div>`).join('')}
     </div>
     <div class="sec-label" style="margin-top:.5rem;">📅 Theo năm</div>`;
 
   Object.keys(grp).sort((a,b)=>b-a).forEach(year=>{
     const yMems=sorted.filter(m=>m.date.startsWith(year));
-    const totalY=yMems.reduce((s,m)=>s+m.mediaUrls.length,0);
-    const prev=yMems.slice(0,4).map(m=>m.mediaUrls[0]);
+    const totalY=yMems.reduce((s,m)=>s+m.media_urls.length,0);
+    const prev=yMems.slice(0,4).map(m=>m.media_urls[0]);
     html+=`<div class="yr-card" id="yr-${year}">
       <div class="yr-hd" onclick="toggleYr('${year}')">
         <div><div class="yr-title">${year}</div><div class="yr-count">${totalY} tấm · ${yMems.length} kỷ niệm</div></div>
         <div class="yr-toggle">▼</div>
       </div>
       <div class="yr-body">
-        ${prev.length?`<div class="yr-preview">${prev.map((u,i)=>`<img src="${u}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/yp${i}/100/100'" onclick="event.stopPropagation();openLB('${u}','image','')">`).join('')}</div>`:''}`;
+        ${prev.length?`<div class="yr-preview">${prev.map((u,i)=>
+          `<img src="${u}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/yp${i}/100/100'"
+               onclick="event.stopPropagation();openLB('${u}','image','')">`).join('')}</div>`:''}`;
     Object.keys(grp[year]).sort((a,b)=>b-a).forEach(mo=>{
       const moPics=Object.values(grp[year][mo]).flat();
       html+=`<div class="mo-item" id="mo-${year}-${mo}">
         <div class="mo-hd" onclick="toggleMo('${year}','${mo}')">
-          <div class="mo-name">${MO[parseInt(mo)]}</div><div class="mo-count">${moPics.length} ảnh ▸</div>
-        </div><div class="mo-body">`;
+          <div class="mo-name">${MO[parseInt(mo)]}</div>
+          <div class="mo-count">${moPics.length} ảnh ▸</div>
+        </div>
+        <div class="mo-body">`;
       Object.keys(grp[year][mo]).sort((a,b)=>b-a).forEach(day=>{
         const items=grp[year][mo][day];
-        html+=`<div class="day-grp"><div class="day-lbl">Ngày ${parseInt(day)} tháng ${parseInt(mo)}</div>
-          <div class="day-grid">${items.map(it=>`
-            ${it.type==='video'?`<video src="${it.url}" muted playsinline onclick="openLB('${it.url}','video','${fmtDate(it.date)}')"></video>`
-              :`<img src="${it.url}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/dy/150/150'" onclick="openLB('${it.url}','image','${fmtDate(it.date)}')">`
-            }`).join('')}</div></div>`;
+        html+=`<div class="day-grp">
+          <div class="day-lbl">Ngày ${parseInt(day)} tháng ${parseInt(mo)}</div>
+          <div class="day-grid">${items.map(it=>it.type==='video'
+            ?`<video src="${it.url}" muted playsinline onclick="openLB('${it.url}','video','${fmtDate(it.date)}')"></video>`
+            :`<img src="${it.url}" loading="lazy" alt="" onerror="this.src='https://picsum.photos/seed/dy/150/150'"
+                  onclick="openLB('${it.url}','image','${fmtDate(it.date)}')">`
+          ).join('')}</div>
+        </div>`;
       });
       html+=`</div></div>`;
     });
@@ -823,157 +733,138 @@ function renderTimeline() {
   $('p-timeline').innerHTML=html;
 }
 
-// ══════════════════════════════════════════════
-// 🧭 NAVIGATION
-// ══════════════════════════════════════════════
-function goPage(pg) {
+/* ───────────────────────────────────────────────
+   NAVIGATION
+   ─────────────────────────────────────────────── */
+function goPage(pg){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('[data-pg]').forEach(b=>b.classList.remove('active'));
   $('p-'+pg).classList.add('active');
   document.querySelectorAll(`[data-pg="${pg}"]`).forEach(b=>b.classList.add('active'));
   S.page=pg;
-  if(pg==='home')    renderHome();
-  if(pg==='category'&&S.catId) renderCat(S.catId);
-  if(pg==='dish'&&S.dishId)    renderDish(S.dishId);
+  if(pg==='home')     renderHome();
+  if(pg==='category'&&S.catId)  renderCat(S.catId);
+  if(pg==='dish'    &&S.dishId) renderDish(S.dishId);
   if(pg==='timeline') renderTimeline();
   window.scrollTo(0,0);
 }
-function openCat(id) { S.catId=id; goPage('category'); }
-function openDish(id) { const d=S.dishes.find(x=>x.id===id); if(d)S.catId=d.categoryId; S.dishId=id; goPage('dish'); }
+function openCat(id){ S.catId=id; goPage('category'); }
+function openDish(id){
+  const d=S.dishes.find(x=>x.id===id);
+  if(d) S.catId=d.category_id;
+  S.dishId=id;
+  goPage('dish');
+}
 
-// ══════════════════════════════════════════════
-// 🪗 ACCORDION
-// ══════════════════════════════════════════════
-function toggleYr(y) { const c=document.getElementById('yr-'+y); if(c)c.classList.toggle('open'); }
-function toggleMo(y,m) { const c=document.getElementById(`mo-${y}-${m}`); if(c)c.classList.toggle('open'); }
+function toggleYr(y){ const el=$('yr-'+y); if(el) el.classList.toggle('open'); }
+function toggleMo(y,m){ const el=$(`mo-${y}-${m}`); if(el) el.classList.toggle('open'); }
 
-// ══════════════════════════════════════════════
-// 📋 MODALS
-// ══════════════════════════════════════════════
-function openAddDish(catId) {
-  $('m-dish-cat').innerHTML=S.cats.map(c=>`<option value="${c.id}"${c.id===catId?' selected':''}>${c.emoji} ${c.name}</option>`).join('');
+/* ───────────────────────────────────────────────
+   MODALS
+   ─────────────────────────────────────────────── */
+function openAddDish(catId){
+  $('m-dish-cat').innerHTML=S.cats.map(c=>
+    `<option value="${c.id}"${c.id===catId?' selected':''}>${c.emoji} ${c.name}</option>`).join('');
   $('m-dish-name').value='';
   openM('m-dish');
 }
-async function submitDish() {
+async function submitDish(){
   const name=$('m-dish-name').value.trim(), catId=$('m-dish-cat').value;
   if(!name){toast('Vui lòng nhập tên món ăn');return;}
   await doAddDish(name,catId);
-  closeM('m-dish'); toast('✅ Đã thêm: '+name);
-  renderCat(S.catId);
+  closeM('m-dish'); toast('✅ Đã thêm: '+name); renderCat(S.catId);
 }
 
-function openUpload(dishId) {
+function openUpload(dishId){
   $('m-up-dish').innerHTML=S.dishes.map(d=>{
-    const c=S.cats.find(x=>x.id===d.categoryId);
-    return `<option value="${d.id}"${d.id===dishId?' selected':''}>${c?.emoji||''} ${d.name}</option>`;
+    const c=S.cats.find(x=>x.id===d.category_id);
+    return`<option value="${d.id}"${d.id===dishId?' selected':''}>${c?.emoji||''} ${d.name}</option>`;
   }).join('');
   $('m-up-date').value=new Date().toISOString().split('T')[0];
   $('m-up-note').value='';
   $('m-preview').innerHTML='';
   $('m-prog').style.display='none';
+  $('m-warn').style.display=IS_DEMO?'block':'none';
   S.files=[];
-  $('m-fb-warn').style.display=IS_DEMO?'block':'none';
   openM('m-upload');
 }
-function onFiles(inp) {
+function onFiles(inp){
   S.files=[...S.files,...Array.from(inp.files)];
   $('m-preview').innerHTML=S.files.map((f,i)=>{
     const u=URL.createObjectURL(f), isV=f.type.startsWith('video');
-    return `<div class="prev-item">${isV?`<video src="${u}" muted></video>`:`<img src="${u}" alt="">`}<button class="prev-rm" onclick="rmFile(${i})">✕</button></div>`;
+    return`<div class="prev-item">
+      ${isV?`<video src="${u}" muted></video>`:`<img src="${u}" alt="">`}
+      <button class="prev-rm" onclick="rmFile(${i})">✕</button>
+    </div>`;
   }).join('');
 }
-function rmFile(i) { S.files.splice(i,1); onFiles({files:S.files}); }
-async function submitUpload() {
+function rmFile(i){ S.files.splice(i,1); onFiles({files:S.files}); }
+
+async function submitUpload(){
   const dishId=$('m-up-dish').value, date=$('m-up-date').value, note=$('m-up-note').value;
   if(!dishId){toast('Vui lòng chọn món ăn');return;}
   if(!date){toast('Vui lòng chọn ngày');return;}
   if(!S.files.length){toast('Vui lòng chọn ít nhất 1 ảnh/video');return;}
-  const btn=$('m-up-btn'); btn.disabled=true; btn.textContent='Đang lưu...';
+  const btn=$('m-up-btn');
+  btn.disabled=true; btn.textContent='Đang lưu...';
   if(!IS_DEMO) $('m-prog').style.display='block';
-  try {
+  try{
     await doAddMemory(dishId,date,S.files,note);
     closeM('m-upload'); toast('💕 Đã lưu kỷ niệm!');
-    if(S.page==='dish'&&S.dishId===dishId) renderDish(dishId);
+    if(S.page==='dish'    &&S.dishId===dishId) renderDish(dishId);
     if(S.page==='timeline') renderTimeline();
-    if(S.page==='home') renderHome();
-  } catch(e) { toast('❌ Lỗi: '+e.message); }
-  finally { btn.disabled=false; btn.textContent='Lưu kỷ niệm 💕'; }
+    if(S.page==='home')     renderHome();
+  }catch(e){ toast('❌ Lỗi: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='Lưu kỷ niệm 💕'; }
 }
 
-function openM(id){ $(id).classList.add('active'); }
-function closeM(id){ $(id).classList.remove('active'); }
-document.querySelectorAll('.modal-ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('active');}));
+function openM(id){$(id).classList.add('active');}
+function closeM(id){$(id).classList.remove('active');}
+document.querySelectorAll('.modal-ov').forEach(o=>
+  o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('active');}));
 
-// ══════════════════════════════════════════════
-// 🔁 TOGGLE EATEN
-// ══════════════════════════════════════════════
-async function onToggle(id, el) {
-  const on = await doToggleEaten(id);
-  el.classList.toggle('on', on);
+/* ── TOGGLE EATEN ── */
+async function onToggle(id,el){
+  const on=await doToggleEaten(id);
+  el.classList.toggle('on',on);
   toast(on?'✅ Đã đánh dấu là đã ăn!':'⭕ Đã bỏ đánh dấu');
 }
 
-// ══════════════════════════════════════════════
-// 🖼️ LIGHTBOX
-// ══════════════════════════════════════════════
-function openLB(url, type, info) {
-  const lb=$('lightbox'), img=$('lb-img'), vid=$('lb-vid');
+/* ── LIGHTBOX ── */
+function openLB(url,type,info){
+  const img=$('lb-img'), vid=$('lb-vid');
   if(type==='video'){img.style.display='none';vid.src=url;vid.style.display='block';}
   else{vid.style.display='none';img.src=url;img.style.display='block';}
   $('lb-info').textContent=info||'';
-  lb.classList.add('active');
+  $('lightbox').classList.add('active');
 }
 function closeLB(){
   $('lightbox').classList.remove('active');
-  const v=$('lb-vid'); try{v.pause();}catch{}
+  try{$('lb-vid').pause();}catch{}
 }
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLB(); });
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLB();});
 
-// ══════════════════════════════════════════════
-// 🎉 TOAST
-// ══════════════════════════════════════════════
-let _t;
-function toast(msg) {
-  const el=$('toast'); el.textContent=msg; el.classList.add('show');
-  clearTimeout(_t); _t=setTimeout(()=>el.classList.remove('show'),2500);
+/* ── TOAST ── */
+let _tt;
+function toast(msg){
+  const el=$('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),2600);
 }
 
-// ══════════════════════════════════════════════
-// 🛠️ UTILS
-// ══════════════════════════════════════════════
-function $(id){ return document.getElementById(id); }
-function fmtDate(s){ if(!s)return''; const[y,m,d]=s.split('-'); return `${d}/${m}/${y}`; }
+/* ── UTILS ── */
+function $(id){return document.getElementById(id);}
+function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
 
-// ══════════════════════════════════════════════
-// 🚀 APP INIT
-// ══════════════════════════════════════════════
-function showLogin(){
-  $('login-screen').classList.add('active');
-  $('app-screen').classList.remove('active');
-}
-async function showApp(){
-  $('login-screen').classList.remove('active');
-  $('app-screen').classList.add('active');
-  $('p-home').innerHTML=`<div class="loading"><div class="spinner"></div><p>Đang tải dữ liệu...</p></div>`;
-  $('p-home').classList.add('active');
+/* ───────────────────────────────────────────────
+   BOOTSTRAP
+   ─────────────────────────────────────────────── */
+(async function boot(){
+  $('p-home').innerHTML='<div class="loading"><div class="spinner"></div><p>Đang tải...</p></div>';
   await loadData();
+  startRealtime();
   renderHome();
-
-  // Realtime sync nếu Firebase
-  if(!IS_DEMO){
-    db.collection('memories').onSnapshot(s=>{
-      S.mems=s.docs.map(d=>({id:d.id,...d.data()}));
-      if(S.page==='home')goPage('home');
-      if(S.page==='timeline')renderTimeline();
-      if(S.page==='dish')renderDish(S.dishId);
-    });
-    db.collection('dishes').onSnapshot(s=>{
-      S.dishes=s.docs.map(d=>({id:d.id,...d.data()}));
-      if(S.page==='category')renderCat(S.catId);
-    });
-  }
-}
+})();
 </script>
 </body>
 </html>
