@@ -140,10 +140,11 @@
     .mem-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin-bottom:1.5rem;}
     .mem-card{
       border-radius:var(--rs);overflow:hidden;box-shadow:var(--sh);
-      cursor:pointer;transition:var(--tr);aspect-ratio:1;
+      cursor:pointer;transition:var(--tr);
       background:var(--cream);position:relative;
     }
     .mem-card:hover{transform:scale(1.025);box-shadow:var(--sh-h);}
+    .mem-card .mem-media{position:relative;aspect-ratio:1;overflow:hidden;}
     .mem-date{
       position:absolute;bottom:0;left:0;right:0;
       background:linear-gradient(transparent,rgba(0,0,0,.52));
@@ -153,6 +154,12 @@
       position:absolute;top:.4rem;right:.4rem;background:rgba(255,255,255,.9);
       border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.68rem;
     }
+    .mem-note-text{
+      padding:.5rem .625rem;background:#fff;font-size:.78rem;color:var(--text);
+      line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+      overflow:hidden;text-overflow:ellipsis;
+    }
+    .mem-note-text::before{content:'💭 ';}
 
     /* ── TIMELINE ── */
     .tl-masonry{columns:2;column-gap:.75rem;margin-bottom:2rem;}
@@ -278,15 +285,47 @@
     .btn-sub:disabled{opacity:.55;cursor:not-allowed;transform:none;}
 
     /* ── LIGHTBOX ── */
-    .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:2000;}
+    .lightbox{
+      position:fixed;inset:0;background:rgba(0,0,0,.95);
+      display:none;flex-direction:column;align-items:center;justify-content:center;
+      z-index:2000;padding:3rem .5rem 0;
+    }
     .lightbox.active{display:flex;}
-    .lightbox img,.lightbox video{max-width:96vw;max-height:88vh;border-radius:var(--rs);object-fit:contain;}
+    .lightbox img,.lightbox video{
+      max-width:96vw;max-height:72vh;border-radius:var(--rs);object-fit:contain;
+      flex-shrink:0;
+    }
     .lb-close{
       position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,.18);
       border:none;color:#fff;width:40px;height:40px;border-radius:50%;
       font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
+      z-index:10;
     }
-    .lb-info{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:.8rem;text-align:center;}
+    .lb-info{
+      flex-shrink:0;width:100%;max-width:480px;
+      padding:.75rem .5rem 1.25rem;text-align:center;
+      color:rgba(255,255,255,.85);font-size:.82rem;
+    }
+    .lb-note-wrap{
+      background:rgba(255,255,255,.12);backdrop-filter:blur(8px);
+      border-radius:14px;padding:.65rem 1rem;margin-bottom:.5rem;
+      max-width:420px;margin-left:auto;margin-right:auto;
+      display:none;cursor:pointer;transition:var(--tr);
+      border:1px solid rgba(255,255,255,.1);
+    }
+    .lb-note-wrap:hover{background:rgba(255,255,255,.18);}
+    .lb-note-wrap.has-note{display:block;}
+    .lb-note-text{color:#fff;font-size:.88rem;line-height:1.5;word-break:break-word;}
+    .lb-note-hint{color:rgba(255,255,255,.4);font-size:.7rem;margin-top:.25rem;}
+    .lb-add-note{
+      background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+      color:rgba(255,255,255,.8);border-radius:24px;padding:.5rem 1.25rem;
+      font-family:var(--fb);font-size:.82rem;font-weight:700;
+      cursor:pointer;transition:var(--tr);display:none;
+    }
+    .lb-add-note:hover{background:rgba(255,255,255,.25);color:#fff;}
+    .lb-add-note.show{display:inline-flex;}
+    .lb-date-text{margin-top:.35rem;font-size:.78rem;color:rgba(255,255,255,.5);}
     .lb-arrow{
       position:absolute;top:50%;transform:translateY(-50%);
       background:rgba(255,255,255,.18);border:none;color:#fff;
@@ -378,7 +417,11 @@
       .cat-grid{grid-template-columns:repeat(4,1fr);}
       .mem-grid{grid-template-columns:repeat(3,1fr);}
       .btm-nav{display:none;}
+      .lightbox img,.lightbox video{max-height:80vh;}
     }
+    /* Note edit modal must be above lightbox */
+    #m-note{z-index:2500;}
+    #m-note .modal{animation:slideUp .28s cubic-bezier(.4,0,.2,1);}
   </style>
 </head>
 <body>
@@ -459,7 +502,30 @@
   <img    id="lb-img" src="" alt="" style="display:none;" onclick="event.stopPropagation()">
   <video  id="lb-vid" src="" controls style="display:none;" onclick="event.stopPropagation()"></video>
   <button class="lb-arrow"   id="lb-next" onclick="navLB(1)"  style="display:none;">›</button>
-  <div class="lb-info"       id="lb-info"></div>
+  <div class="lb-info"       id="lb-info" onclick="event.stopPropagation()">
+    <div class="lb-note-wrap" id="lb-note-wrap" onclick="event.stopPropagation();openEditNote()">
+      <div class="lb-note-text" id="lb-note-text"></div>
+      <div class="lb-note-hint">nhấn để sửa ghi chú ✏️</div>
+    </div>
+    <button class="lb-add-note" id="lb-add-note" onclick="event.stopPropagation();openEditNote()">💭 Thêm ghi chú</button>
+    <div class="lb-date-text" id="lb-date-text"></div>
+  </div>
+</div>
+
+<!-- ── MODAL: EDIT NOTE ── -->
+<div class="modal-ov" id="m-note">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title">💭 Ghi chú kỷ niệm</h2>
+    <div class="form-g">
+      <label>Ghi chú</label>
+      <textarea id="m-note-text" placeholder="Ngon quá trời! Nhớ mãi bữa này... 💭" rows="4"></textarea>
+    </div>
+    <div class="modal-acts">
+      <button class="btn-sec" onclick="closeM('m-note')">Hủy</button>
+      <button class="btn-sub" onclick="saveNote()">Lưu ghi chú 💕</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -867,7 +933,7 @@ function renderHome() {
   // Pre-build pool before innerHTML
   const homePool = recent.map(m => ({
     url: m.media_urls[0], type: m.media_types?.[0] || 'image',
-    info: '', memId: m.id, fid: m.tg_file_ids?.[0] || ''
+    info: fmtDate(m.date), note: m.note || '', memId: m.id, fid: m.tg_file_ids?.[0] || ''
   }));
   setPool('home', homePool);
 
@@ -933,7 +999,7 @@ function renderDish(dishId) {
 
   const dishPool = mems.map(m => ({
     url: m.media_urls[0], type: m.media_types?.[0]||'image',
-    info: fmtDate(m.date), memId: m.id, fid: m.tg_file_ids?.[0]||''
+    info: fmtDate(m.date), note: m.note || '', memId: m.id, fid: m.tg_file_ids?.[0]||''
   }));
   setPool('dish', dishPool);
 
@@ -945,10 +1011,13 @@ function renderDish(dishId) {
       ? `<div class="empty"><p>📷</p><h3>Chưa có kỷ niệm</h3><p style="font-size:.88rem">Upload ảnh đầu tiên ngay!</p></div>`
       : `<div class="mem-grid">${mems.map((m, i) => `
           <div class="mem-card fi" style="animation-delay:${i*.05}s" onclick="openPool('dish',${i})">
-            ${renderMedia(m.media_urls[0], m.media_types?.[0]||'image', m.tg_file_ids?.[0]||'')}
-            <div class="mem-date">${fmtDate(m.date)}</div>
-            ${m.note ? `<div class="mem-note-badge">💭</div>` : ''}
-            <button class="mem-del" onclick="event.stopPropagation();confirmDeleteMem('${m.id}')" title="Xóa kỷ niệm">🗑</button>
+            <div class="mem-media">
+              ${renderMedia(m.media_urls[0], m.media_types?.[0]||'image', m.tg_file_ids?.[0]||'')}
+              <div class="mem-date">${fmtDate(m.date)}</div>
+              ${m.note ? `<div class="mem-note-badge">💭</div>` : ''}
+              <button class="mem-del" onclick="event.stopPropagation();confirmDeleteMem('${m.id}')" title="Xóa kỷ niệm">🗑</button>
+            </div>
+            ${m.note ? `<div class="mem-note-text">${_escHtml(m.note)}</div>` : ''}
           </div>`).join('')}</div>`}
   `;
   afterRender('p-dish');
@@ -970,18 +1039,20 @@ function renderTimeline() {
     if (!grp[y][mo][d]) grp[y][mo][d] = [];
     m.media_urls.forEach((u, i) => grp[y][mo][d].push({
       url: u, type: m.media_types?.[i]||'image',
-      date: m.date, fid: m.tg_file_ids?.[i]||'', memId: m.id
+      date: m.date, fid: m.tg_file_ids?.[i]||'', memId: m.id,
+      note: m.note || ''
     }));
   });
 
   const allPh  = sorted.flatMap(m => m.media_urls.map((u,i) => ({
     url: u, type: m.media_types?.[i]||'image',
-    date: m.date, fid: m.tg_file_ids?.[i]||'', memId: m.id
+    date: m.date, fid: m.tg_file_ids?.[i]||'', memId: m.id,
+    note: m.note || ''
   }))).slice(0, 24);
   const total  = sorted.reduce((s,m) => s + m.media_urls.length, 0);
   const MO     = ['','Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
 
-  setPool('tl', allPh.map(p => ({ url: p.url, type: p.type, info: fmtDate(p.date), memId: p.memId, fid: p.fid })));
+  setPool('tl', allPh.map(p => ({ url: p.url, type: p.type, info: fmtDate(p.date), note: p.note || '', memId: p.memId, fid: p.fid })));
 
   let html = `
     <h1 class="pg-title">📷 <span>Timeline</span></h1>
@@ -1033,7 +1104,7 @@ function renderTimeline() {
       Object.keys(grp[year][mo]).sort((a,b) => b-a).forEach(day => {
         const items  = grp[year][mo][day];
         const poolKey = `day_${year}_${mo}_${day}`;
-        setPool(poolKey, items.map(it => ({ url: it.url, type: it.type, info: fmtDate(it.date), memId: it.memId, fid: it.fid })));
+        setPool(poolKey, items.map(it => ({ url: it.url, type: it.type, info: fmtDate(it.date), note: it.note || '', memId: it.memId, fid: it.fid })));
         html += `<div class="day-grp">
           <div class="day-lbl">Ngày ${parseInt(day)} tháng ${parseInt(mo)}</div>
           <div class="day-grid">
@@ -1278,7 +1349,21 @@ function _renderLB() {
     tmp.src = item.url;
   }
 
-  $('lb-info').textContent = item.info || '';
+  // Note display
+  const noteWrap = $('lb-note-wrap');
+  const noteText = $('lb-note-text');
+  const addNoteBtn = $('lb-add-note');
+  if (item.note) {
+    noteText.textContent = item.note;
+    noteWrap.classList.add('has-note');
+    addNoteBtn.classList.remove('show');
+  } else {
+    noteWrap.classList.remove('has-note');
+    noteText.textContent = '';
+    addNoteBtn.classList.toggle('show', !!item.memId);
+  }
+  $('lb-date-text').textContent = item.info || '';
+
   const n    = _lb.pool.length;
   $('lb-count').textContent = n > 1 ? `${_lb.idx+1} / ${n}` : '';
   const show = n > 1 ? 'flex' : 'none';
@@ -1382,6 +1467,46 @@ function toast(msg) {
 }
 function $(id) { return document.getElementById(id); }
 function fmtDate(s) { if (!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
+function _escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+/* ═══════════════════════════════════════════════
+   NOTE EDIT
+   ═══════════════════════════════════════════════ */
+function openEditNote() {
+  const item = _lb.pool[_lb.idx];
+  if (!item?.memId) return;
+  $('m-note-text').value = item.note || '';
+  openM('m-note');
+}
+
+async function saveNote() {
+  const item = _lb.pool[_lb.idx];
+  if (!item?.memId) return;
+  const newNote = $('m-note-text').value.trim();
+  const mem = S.mems.find(m => m.id === item.memId);
+  if (!mem) return;
+
+  // Save to database
+  if (!IS_DEMO) {
+    const { error } = await sbClient.from('memories').update({ note: newNote }).eq('id', item.memId);
+    if (error) { toast('❌ Lỗi: ' + error.message); return; }
+  }
+
+  // Update local state
+  mem.note = newNote;
+
+  // Update all pool items with this memId
+  Object.values(_pools).forEach(pool => {
+    pool.forEach(p => {
+      if (p.memId === item.memId) p.note = newNote;
+    });
+  });
+
+  closeM('m-note');
+  _renderLB(); // Refresh lightbox note display
+  reRender();  // Refresh cards
+  toast(newNote ? '💭 Đã lưu ghi chú!' : '💭 Đã xóa ghi chú');
+}
 
 /* Proactively refresh tất cả Telegram URLs đã hết hạn */
 async function _refreshExpiredUrls() {
