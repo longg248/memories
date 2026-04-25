@@ -173,7 +173,8 @@
     .yr-body{display:none;padding:0 1.125rem 1.125rem;}
     .yr-card.open .yr-body{display:block;}
     .yr-preview{display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem;margin-bottom:.875rem;}
-    .yr-preview img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;}
+    .yr-preview img,.yr-preview video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;}
+    .yr-preview .lazy-wrap{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;}
 
     .mo-item{background:var(--cream);border-radius:var(--rs);margin-bottom:.625rem;overflow:hidden;}
     .mo-hd{display:flex;align-items:center;justify-content:space-between;padding:.8rem .875rem;cursor:pointer;}
@@ -337,13 +338,14 @@
     /* ── TOAST ── */
     .toast{
       position:fixed;bottom:5.5rem;left:50%;
-      transform:translateX(-50%) translateY(80px);
+      transform:translateX(-50%) translateY(120px);
+      opacity:0;
       background:var(--text);color:#fff;padding:.65rem 1.375rem;
       border-radius:24px;font-size:.88rem;font-weight:700;
-      z-index:3000;transition:transform .3s ease;pointer-events:none;
+      z-index:3000;transition:transform .3s ease, opacity .3s ease;pointer-events:none;
       white-space:nowrap;
     }
-    .toast.show{transform:translateX(-50%) translateY(0);}
+    .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 
     /* ── LOADING / EMPTY ── */
     .loading{text-align:center;padding:3rem 1rem;color:var(--text-lt);}
@@ -995,9 +997,12 @@ function renderTimeline() {
   Object.keys(grp).sort((a,b) => b-a).forEach(year => {
     const yMems  = sorted.filter(m => m.date.startsWith(year));
     const totalY = yMems.reduce((s,m) => s + m.media_urls.length, 0);
-    const prev   = yMems.slice(0, 4).map(m => ({ url: m.media_urls[0], fid: m.tg_file_ids?.[0]||'', memId: m.id }));
+    const prev   = yMems.slice(0, 4).map(m => ({
+      url: m.media_urls[0], type: m.media_types?.[0]||'image',
+      fid: m.tg_file_ids?.[0]||'', memId: m.id
+    }));
     const ypKey  = 'yp_'+year;
-    setPool(ypKey, prev.map(p => ({ url: p.url, type: 'image', info: year, memId: p.memId, fid: p.fid })));
+    setPool(ypKey, prev.map(p => ({ url: p.url, type: p.type, info: year, memId: p.memId, fid: p.fid })));
 
     html += `<div class="yr-card" id="yr-${year}">
       <div class="yr-hd" onclick="toggleYr('${year}')">
@@ -1006,10 +1011,14 @@ function renderTimeline() {
       </div>
       <div class="yr-body">
         ${prev.length ? `<div class="yr-preview">${prev.map((p,i) =>
-          `<div class="lazy-wrap" style="aspect-ratio:1;border-radius:8px;overflow:hidden;">
-            <img class="lazy-img" data-src="${p.url}" data-fid="${p.fid}" alt="" decoding="async"
-                 style="width:100%;height:100%;object-fit:cover;cursor:pointer;"
-                 onclick="openPool('${ypKey}',${i})">
+          `<div class="lazy-wrap" style="aspect-ratio:1;border-radius:8px;overflow:hidden;cursor:pointer;" onclick="openPool('${ypKey}',${i})">
+            ${p.type === 'video'
+              ? `<video class="lazy-vid" data-src="${p.url}" data-fid="${p.fid}" muted playsinline preload="metadata"
+                   style="width:100%;height:100%;object-fit:cover;"></video>
+                 <div class="vid-overlay">▶</div>`
+              : `<img class="lazy-img" data-src="${p.url}" data-fid="${p.fid}" alt="" decoding="async"
+                   style="width:100%;height:100%;object-fit:cover;">`
+            }
           </div>`
         ).join('')}</div>` : ''}`;
 
